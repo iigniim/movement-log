@@ -6,7 +6,7 @@ import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Member, Questionnaire } from "@/lib/types";
+import type { Member, Questionnaire, Routine } from "@/lib/types";
 
 const RISK_LABEL: Record<string, string> = {
   low: "낮음",
@@ -41,6 +41,23 @@ export default async function TrainerDashboard() {
   const riskByMember = new Map(
     (questionnaires ?? []).map((q) => [q.member_id, q]),
   );
+
+  const { data: activeRoutines } = memberIds.length
+    ? await supabase
+        .from("routines")
+        .select("member_id")
+        .in("member_id", memberIds)
+        .eq("status", "active")
+        .returns<Pick<Routine, "member_id">[]>()
+    : { data: [] as Pick<Routine, "member_id">[] };
+
+  const activeRoutineCountByMember = new Map<string, number>();
+  for (const r of activeRoutines ?? []) {
+    activeRoutineCountByMember.set(
+      r.member_id,
+      (activeRoutineCountByMember.get(r.member_id) ?? 0) + 1,
+    );
+  }
 
   // ponytail: 회원마다 admin API를 한 번씩 호출한다(N+1) - 담당 회원 수가 늘어나면
   // members에 status 컬럼을 두고 웹훅으로 갱신하는 방식으로 바꿀 것.
@@ -112,6 +129,31 @@ export default async function TrainerDashboard() {
                 >
                   {risk ? RISK_LABEL[risk] : "문진표 없음"}
                 </Badge>
+                {(() => {
+                  const activeCount = activeRoutineCountByMember.get(member.id) ?? 0;
+                  const href =
+                    activeCount === 0
+                      ? `/trainer/members/${member.id}/assessment`
+                      : activeCount === 1
+                        ? `/trainer/members/${member.id}/session`
+                        : `/trainer/members/${member.id}/routines`;
+                  const label =
+                    activeCount === 0
+                      ? "검사·루틴 시작"
+                      : activeCount === 1
+                        ? "수업 체크리스트"
+                        : "루틴 선택";
+                  return (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      nativeButton={false}
+                      render={<Link href={href} />}
+                    >
+                      {label}
+                    </Button>
+                  );
+                })()}
               </div>
             </Card>
           );
