@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { ROUTINE_CATEGORIES } from "@/lib/assessment";
 import type { RoutineDraftItem } from "@/lib/routine-generate";
-import type { Exercise, RoutineItem } from "@/lib/types";
+import type { Exercise } from "@/lib/types";
 import { formatSetsReps } from "@/lib/format";
 import { SessionChecklist, type ChecklistItem } from "../../session-checklist";
 import { confirmRoutine } from "./actions";
@@ -31,12 +31,10 @@ export function RoutineDraft({
   memberId,
   assessmentId,
   categories,
-  restartFrom,
 }: {
   memberId: string;
   assessmentId: string;
   categories: string[];
-  restartFrom?: string;
 }) {
   const [originalDraft, setOriginalDraft] = useState<{
     items: RoutineDraftItem[];
@@ -58,11 +56,7 @@ export function RoutineDraft({
   } | null>(null);
 
   useEffect(() => {
-    if (restartFrom) {
-      loadFromArchivedRoutine(restartFrom);
-    } else {
-      generateWithAi();
-    }
+    generateWithAi();
 
     async function generateWithAi() {
       try {
@@ -75,6 +69,7 @@ export function RoutineDraft({
         if (!res.ok) throw new Error(result.error ?? "루틴 생성에 실패했습니다.");
 
         const rawItems: (RoutineDraftItem & { exercise?: Exercise })[] = result.items;
+        setBodyCompositionId(result.bodyCompositionId ?? null);
         setOriginalDraft({
           items: rawItems.map(({ exerciseId, sets, reps, durationSeconds, cautionNote }) => ({
             exerciseId,
@@ -91,48 +86,6 @@ export function RoutineDraft({
       } catch (e) {
         setError((e as Error).message);
       }
-    }
-
-    async function loadFromArchivedRoutine(routineId: string) {
-      const supabase = createClient();
-
-      const [{ data: source }, { data: sourceItems }] = await Promise.all([
-        supabase.from("routines").select("body_composition_id").eq("id", routineId).single(),
-        supabase
-          .from("routine_items")
-          .select("*, exercise:exercise_library(*)")
-          .eq("routine_id", routineId)
-          .order("sort_order")
-          .returns<(RoutineItem & { exercise?: Exercise })[]>(),
-      ]);
-
-      if (!sourceItems) {
-        setError("지난 루틴을 불러오지 못했습니다.");
-        return;
-      }
-
-      setBodyCompositionId(source?.body_composition_id ?? null);
-
-      const rawItems = sourceItems.map((item) => ({
-        exerciseId: item.exercise_id ?? "",
-        sets: item.sets ?? 3,
-        reps: item.reps,
-        durationSeconds: item.duration_seconds,
-        cautionNote: item.caution_note ?? "",
-        exercise: item.exercise,
-      }));
-
-      setOriginalDraft({
-        items: rawItems.map(({ exerciseId, sets, reps, durationSeconds, cautionNote }) => ({
-          exerciseId,
-          sets,
-          reps,
-          durationSeconds,
-          cautionNote,
-        })),
-        reasoning: "지난 루틴에서 그대로 불러온 초안입니다.",
-      });
-      setItems(rawItems.map((item, i) => ({ ...item, key: `${item.exerciseId}-${i}` })));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -282,11 +235,7 @@ export function RoutineDraft({
   }
 
   if (!items) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {restartFrom ? "지난 루틴을 불러오는 중..." : "AI가 루틴을 구성하는 중..."}
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">AI가 루틴을 구성하는 중...</p>;
   }
 
   const usedExerciseIds = new Set(items.map((it) => it.exerciseId));

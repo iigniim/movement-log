@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
 import { classifyRisk } from "@/lib/risk";
 import { recommendAssessmentItems } from "@/lib/assessment-recommend";
+import { archiveActiveRoutines } from "@/lib/reassessment";
+import { formatHealthUpdatesForPrompt } from "@/lib/format";
 import { PARQ_QUESTIONS } from "@/lib/parq";
-import type { ParqAnswer } from "@/lib/types";
+import type { HealthUpdate, ParqAnswer, Questionnaire } from "@/lib/types";
 
 export async function submitQuestionnaire(formData: FormData) {
   const supabase = await createClient();
@@ -61,11 +63,7 @@ export async function submitQuestionnaire(formData: FormData) {
   // 문진표가 갱신되면 몸 상태를 다시 검토해야 하므로, 기존에 활성 상태였던
   // 루틴은 전부 보관 처리하고 재검사(검사 추천→입력→루틴 생성)부터 다시
   // 진행하도록 한다 - 안전을 위한 재검토 단계라 매번 무조건 실행한다.
-  await supabase
-    .from("routines")
-    .update({ status: "archived" })
-    .eq("member_id", member.id)
-    .eq("status", "active");
+  await archiveActiveRoutines(supabase, member.id);
 
   const { riskLevel } = await classifyRisk({
     parqAnswers,
@@ -91,6 +89,65 @@ export async function submitQuestionnaire(formData: FormData) {
     questionnaire_id: inserted.id,
     recommended_items: recommended,
   });
+
+  redirect("/member");
+}
+
+// 최초 문진표를 이미 작성한 회원은 PAR-Q 전체를 다시 쓰는 대신, 이 화면에서
+// 변경된 내용만 짧게 알린다. questionnaires에 새 행을 만들지 않고, 최신
+// 문진표 원본 + 지금까지 쌓인 health_updates 전체를 함께 반영해 risk_level만
+// 갱신한다.
+export async function submitHealthUpdate(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const member = await getMemberForUser(supabase, user.id);
+  if (!member) redirect("/login");
+
+  const note = String(formData.get("note") ?? "").trim();
+  if (!note) {
+    redirect(
+      `/member/questionnaire?error=${encodeURIComponent("새로 추가할 내용을 입력해 주세요.")}`,
+    );
+  }
+
+  const { data: latest } = await supabase
+    .from("questionnaires")
+    .select("*")
+    .eq("member_id", member.id)
+    .eq("is_latest", true)
+    .maybeSingle<Questionnaire>();
+
+  if (!latest) {
+    redirect(
+      `/member/questionnaire?error=${encodeURIComponent("기존 문진표를 찾을 수 없습니다.")}`,
+    );
+  }
+
+  await supabase.from("health_updates").insert({ member_id: member.id, note });
+
+  // 문진표 재제출과 동일하게 "재검토 필요" 상태로 처리한다.
+  await archiveActiveRoutines(supabase, member.id);
+
+  const { data: healthUpdates } = await supabase
+    .from("health_updates")
+    .select("*")
+    .eq("member_id", member.id)
+    .order("created_at", { ascending: true })
+    .returns<HealthUpdate[]>();
+
+  const { riskLevel } = await classifyRisk({
+    parqAnswers: latest.parq_answers,
+    injuryHistory: latest.injury_history ?? "",
+    surgeryHistory: latest.surgery_history ?? "",
+    chronicCondition: latest.chronic_condition ?? "",
+    healthUpdatesText: formatHealthUpdatesForPrompt(healthUpdates ?? []),
+  });
+
+  await supabase.from("questionnaires").update({ risk_level: riskLevel }).eq("id", latest.id);
 
   redirect("/member");
 }

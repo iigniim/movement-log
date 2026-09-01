@@ -60,7 +60,7 @@ export default async function MemberAssessmentPage({
           nativeButton={false}
           render={<Link href={`/trainer/members/${memberId}/routines`} />}
         >
-          지난 루틴 보기
+          루틴 목록 보기
         </Button>
       </div>
 

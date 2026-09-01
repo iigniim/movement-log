@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,18 @@ export function SessionChecklist({
   const [items, setItems] = useState(initialItems);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const checklistRef = useRef<HTMLDivElement>(null);
+
+  function toggleSelectAll() {
+    const boxes = checklistRef.current?.querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    if (!boxes || boxes.length === 0) return;
+    const allChecked = Array.from(boxes).every((box) => box.checked);
+    boxes.forEach((box) => {
+      box.checked = !allChecked;
+    });
+  }
 
   const [swappingId, setSwappingId] = useState<string | null>(null);
   const [swapCategory, setSwapCategory] = useState("");
@@ -412,10 +424,13 @@ export function SessionChecklist({
           className="space-y-6"
         >
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between">
               <CardTitle>운동 체크리스트</CardTitle>
+              <Button type="button" variant="outline" size="sm" onClick={toggleSelectAll}>
+                전체 선택
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4" ref={checklistRef}>
               {items.map((item) => (
                 <label
                   key={item.id}

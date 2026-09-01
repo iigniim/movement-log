@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { recommendAssessmentItems } from "@/lib/assessment-recommend";
-import type { Questionnaire } from "@/lib/types";
+import { formatHealthUpdatesForPrompt } from "@/lib/format";
+import type { HealthUpdate, Questionnaire } from "@/lib/types";
 
 export async function POST(request: Request) {
   const { questionnaireId } = await request.json();
@@ -27,11 +28,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: healthUpdates } = await supabase
+    .from("health_updates")
+    .select("*")
+    .eq("member_id", questionnaire.member_id)
+    .order("created_at", { ascending: true })
+    .returns<HealthUpdate[]>();
+
   const recommended = await recommendAssessmentItems({
     parqAnswers: questionnaire.parq_answers,
     injuryHistory: questionnaire.injury_history ?? "",
     surgeryHistory: questionnaire.surgery_history ?? "",
     chronicCondition: questionnaire.chronic_condition ?? "",
+    healthUpdatesText: formatHealthUpdatesForPrompt(healthUpdates ?? []),
   });
 
   const { data: assessment, error: insertError } = await supabase

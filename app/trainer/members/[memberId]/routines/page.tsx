@@ -3,7 +3,10 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatDateTime, formatRoutineName } from "@/lib/format";
 import type { Assessment, Exercise, Member, Routine, RoutineItem } from "@/lib/types";
+import { toggleRoutinePin } from "./actions";
+import { RoutineNameEditor } from "./routine-name-editor";
 
 type RoutineItemWithExercise = RoutineItem & { exercise: Exercise | null };
 type RoutineWithItems = Routine & { items: RoutineItemWithExercise[] };
@@ -31,6 +34,7 @@ export default async function RoutinesPage({
     .from("routines")
     .select("*")
     .eq("member_id", memberId)
+    .eq("status", "active")
     .order("created_at", { ascending: false })
     .returns<Routine[]>();
 
@@ -51,13 +55,37 @@ export default async function RoutinesPage({
     itemsByRoutine.set(item.routine_id, list);
   }
 
+  const { data: sessionLogs } = routineIds.length
+    ? await supabase
+        .from("session_logs")
+        .select("routine_id, created_at")
+        .in("routine_id", routineIds)
+        .returns<{ routine_id: string | null; created_at: string }[]>()
+    : { data: [] as { routine_id: string | null; created_at: string }[] };
+
+  const lastProgressedByRoutine = new Map<string, string>();
+  for (const log of sessionLogs ?? []) {
+    if (!log.routine_id) continue;
+    const current = lastProgressedByRoutine.get(log.routine_id);
+    if (!current || log.created_at > current) {
+      lastProgressedByRoutine.set(log.routine_id, log.created_at);
+    }
+  }
+
   const routinesWithItems: RoutineWithItems[] = (routines ?? []).map((r) => ({
     ...r,
     items: itemsByRoutine.get(r.id) ?? [],
   }));
 
-  const activeRoutines = routinesWithItems.filter((r) => r.status === "active");
-  const archivedRoutines = routinesWithItems.filter((r) => r.status === "archived");
+  routinesWithItems.sort((a, b) => {
+    if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+    const aLast = lastProgressedByRoutine.get(a.id);
+    const bLast = lastProgressedByRoutine.get(b.id);
+    if (aLast && bLast) return aLast > bLast ? -1 : aLast < bLast ? 1 : 0;
+    if (aLast && !bLast) return -1;
+    if (!aLast && bLast) return 1;
+    return b.created_at.localeCompare(a.created_at);
+  });
 
   const { data: latestAssessment } = await supabase
     .from("assessments")
@@ -66,18 +94,6 @@ export default async function RoutinesPage({
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle<Assessment>();
-
-  function restartHref(routine: Routine) {
-    if (!routine.assessment_id) return null;
-    const params = new URLSearchParams({
-      assessmentId: routine.assessment_id,
-      restartFrom: routine.id,
-    });
-    for (const category of routine.target_categories ?? []) {
-      params.append("category", category);
-    }
-    return `/trainer/members/${memberId}/routine/new?${params.toString()}`;
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
@@ -107,54 +123,25 @@ export default async function RoutinesPage({
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">활성 루틴</h2>
-        {activeRoutines.length === 0 && (
+        {routinesWithItems.length === 0 && (
           <Card className="px-4 py-6">
             <p className="text-sm text-muted-foreground">진행 중인 루틴이 없습니다.</p>
           </Card>
         )}
-        {activeRoutines.map((routine) => (
-          <Card key={routine.id} className="flex-row items-center justify-between px-4 py-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {(routine.target_categories ?? []).join(", ") || "카테고리 없음"}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(routine.created_at).toLocaleDateString("ko-KR")} 생성 ·{" "}
-                {routine.items
-                  .map((i) => i.exercise?.name_ko ?? i.exercise?.name_en)
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={
-                <Link href={`/trainer/members/${memberId}/session?routineId=${routine.id}`} />
-              }
-            >
-              이 루틴으로 진행
-            </Button>
-          </Card>
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">지난 루틴</h2>
-        {archivedRoutines.length === 0 && (
-          <Card className="px-4 py-6">
-            <p className="text-sm text-muted-foreground">지난 루틴이 없습니다.</p>
-          </Card>
-        )}
-        {archivedRoutines.map((routine) => {
-          const href = restartHref(routine);
+        {routinesWithItems.map((routine) => {
+          const lastProgressedAt = lastProgressedByRoutine.get(routine.id);
           return (
             <Card key={routine.id} className="flex-row items-center justify-between px-4 py-4">
               <div>
-                <p className="text-sm font-medium text-foreground">
-                  {(routine.target_categories ?? []).join(", ") || "카테고리 없음"}
-                </p>
+                <div className="flex items-center gap-1">
+                  {routine.is_pinned && <span>📌</span>}
+                  <RoutineNameEditor
+                    memberId={memberId}
+                    routineId={routine.id}
+                    displayName={formatRoutineName(routine)}
+                    rawName={routine.name}
+                  />
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {new Date(routine.created_at).toLocaleDateString("ko-KR")} 생성 ·{" "}
                   {routine.items
@@ -162,12 +149,29 @@ export default async function RoutinesPage({
                     .filter(Boolean)
                     .join(", ")}
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  마지막 진행:{" "}
+                  {lastProgressedAt ? formatDateTime(lastProgressedAt) : "아직 진행 안 함"}
+                </p>
               </div>
-              {href && (
-                <Button size="sm" nativeButton={false} render={<Link href={href} />}>
-                  이 루틴으로 다시 시작
+              <div className="flex shrink-0 flex-col items-end gap-2">
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  render={
+                    <Link href={`/trainer/members/${memberId}/session?routineId=${routine.id}`} />
+                  }
+                >
+                  이 루틴으로 진행
                 </Button>
-              )}
+                <form
+                  action={toggleRoutinePin.bind(null, memberId, routine.id, !routine.is_pinned)}
+                >
+                  <Button type="submit" variant="ghost" size="sm">
+                    {routine.is_pinned ? "고정 해제" : "상단 고정"}
+                  </Button>
+                </form>
+              </div>
             </Card>
           );
         })}

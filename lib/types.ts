@@ -26,6 +26,24 @@ export type Questionnaire = {
   created_at: string;
 };
 
+export type HealthUpdate = {
+  id: string;
+  member_id: string;
+  note: string;
+  created_at: string;
+};
+
+export type BodyComposition = {
+  id: string;
+  member_id: string;
+  measured_at: string;
+  weight_kg: number | null;
+  body_fat_mass_kg: number | null;
+  skeletal_muscle_mass_kg: number | null;
+  is_latest: boolean;
+  created_at: string;
+};
+
 export type RecommendedItems = {
   items: string[];
   reasoning: string;
@@ -68,6 +86,8 @@ export type Routine = {
   status: "active" | "archived";
   ai_snapshot: unknown;
   created_at: string;
+  name: string | null;
+  is_pinned: boolean;
 };
 
 export type RoutineItem = {

@@ -6,6 +6,7 @@ import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 import type { Member, Questionnaire, Routine } from "@/lib/types";
 
 const RISK_LABEL: Record<string, string> = {
@@ -45,18 +46,52 @@ export default async function TrainerDashboard() {
   const { data: activeRoutines } = memberIds.length
     ? await supabase
         .from("routines")
-        .select("member_id")
+        .select("member_id, created_at")
         .in("member_id", memberIds)
         .eq("status", "active")
-        .returns<Pick<Routine, "member_id">[]>()
-    : { data: [] as Pick<Routine, "member_id">[] };
+        .returns<Pick<Routine, "member_id" | "created_at">[]>()
+    : { data: [] as Pick<Routine, "member_id" | "created_at">[] };
 
   const activeRoutineCountByMember = new Map<string, number>();
+  const latestActiveRoutineCreatedAtByMember = new Map<string, string>();
   for (const r of activeRoutines ?? []) {
     activeRoutineCountByMember.set(
       r.member_id,
       (activeRoutineCountByMember.get(r.member_id) ?? 0) + 1,
     );
+    const current = latestActiveRoutineCreatedAtByMember.get(r.member_id);
+    if (!current || r.created_at > current) {
+      latestActiveRoutineCreatedAtByMember.set(r.member_id, r.created_at);
+    }
+  }
+
+  const { data: bodyCompositions } = memberIds.length
+    ? await supabase
+        .from("body_composition_records")
+        .select("member_id, created_at")
+        .in("member_id", memberIds)
+        .eq("is_latest", true)
+        .returns<{ member_id: string; created_at: string }[]>()
+    : { data: [] as { member_id: string; created_at: string }[] };
+
+  const latestBodyCompositionCreatedAtByMember = new Map(
+    (bodyCompositions ?? []).map((b) => [b.member_id, b.created_at]),
+  );
+
+  const { data: sessionLogs } = memberIds.length
+    ? await supabase
+        .from("session_logs")
+        .select("member_id, created_at")
+        .in("member_id", memberIds)
+        .returns<{ member_id: string; created_at: string }[]>()
+    : { data: [] as { member_id: string; created_at: string }[] };
+
+  const lastSessionAtByMember = new Map<string, string>();
+  for (const log of sessionLogs ?? []) {
+    const current = lastSessionAtByMember.get(log.member_id);
+    if (!current || log.created_at > current) {
+      lastSessionAtByMember.set(log.member_id, log.created_at);
+    }
   }
 
   // ponytail: 회원마다 admin API를 한 번씩 호출한다(N+1) - 담당 회원 수가 늘어나면
@@ -97,6 +132,7 @@ export default async function TrainerDashboard() {
           const questionnaire = riskByMember.get(member.id);
           const risk = questionnaire?.risk_level;
           const joined = joinedByMember.get(member.id);
+          const lastSessionAt = lastSessionAtByMember.get(member.id);
           return (
             <Card
               key={member.id}
@@ -105,6 +141,9 @@ export default async function TrainerDashboard() {
               <div>
                 <p className="text-sm font-medium text-foreground">
                   {member.name ?? "이름 없음"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  마지막 진행: {lastSessionAt ? formatDateTime(lastSessionAt) : "아직 진행 안 함"}
                 </p>
                 {risk === "high" && (
                   <p className="mt-1 text-xs font-medium text-destructive">
@@ -131,14 +170,26 @@ export default async function TrainerDashboard() {
                 </Badge>
                 {(() => {
                   const activeCount = activeRoutineCountByMember.get(member.id) ?? 0;
+                  const latestRoutineCreatedAt = latestActiveRoutineCreatedAtByMember.get(
+                    member.id,
+                  );
+                  const latestBodyCompositionCreatedAt =
+                    latestBodyCompositionCreatedAtByMember.get(member.id);
+                  // 활성 루틴이 있어도, 그 루틴을 만든 이후 인바디가 새로
+                  // 갱신됐다면 문진표 갱신과 동일하게 재검사부터 다시 진행한다.
+                  const needsReassessment = Boolean(
+                    latestRoutineCreatedAt &&
+                      latestBodyCompositionCreatedAt &&
+                      latestBodyCompositionCreatedAt > latestRoutineCreatedAt,
+                  );
                   const href =
-                    activeCount === 0
-                      ? `/trainer/members/${member.id}/assessment`
+                    activeCount === 0 || needsReassessment
+                      ? `/trainer/members/${member.id}/body-composition`
                       : activeCount === 1
                         ? `/trainer/members/${member.id}/session`
                         : `/trainer/members/${member.id}/routines`;
                   const label =
-                    activeCount === 0
+                    activeCount === 0 || needsReassessment
                       ? "검사·루틴 시작"
                       : activeCount === 1
                         ? "수업 체크리스트"

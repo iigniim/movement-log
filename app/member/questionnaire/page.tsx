@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,9 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { createClient } from "@/lib/supabase/server";
+import { getMemberForUser } from "@/lib/auth";
 import { PARQ_QUESTIONS } from "@/lib/parq";
+import type { Questionnaire } from "@/lib/types";
 import { BirthDatePicker } from "./birth-date-picker";
-import { submitQuestionnaire } from "./actions";
+import { submitQuestionnaire, submitHealthUpdate } from "./actions";
 
 export default async function QuestionnairePage({
   searchParams,
@@ -19,6 +23,70 @@ export default async function QuestionnairePage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const member = await getMemberForUser(supabase, user.id);
+  if (!member) redirect("/login");
+
+  const { data: latest } = await supabase
+    .from("questionnaires")
+    .select("*")
+    .eq("member_id", member.id)
+    .eq("is_latest", true)
+    .maybeSingle<Questionnaire>();
+
+  if (latest) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">건강 상태 업데이트</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            이미 작성한 문진표가 있어요. 그동안 달라진 점만 짧게 알려주세요.
+          </p>
+        </div>
+
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>기존 문진표 요약 (참고용)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>상해력: {latest.injury_history || "없음"}</p>
+            <p>수술력: {latest.surgery_history || "없음"}</p>
+            <p>기저질환: {latest.chronic_condition || "없음"}</p>
+          </CardContent>
+        </Card>
+
+        <form action={submitHealthUpdate} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>새로 추가할 내용</CardTitle>
+              <CardDescription>
+                예: 등에 담 걸림, 팔저림 개선됨, 복용하던 약 중단함
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea id="note" name="note" rows={4} required />
+            </CardContent>
+          </Card>
+
+          <Button type="submit" size="lg" className="w-full">
+            제출
+          </Button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">

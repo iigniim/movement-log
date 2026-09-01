@@ -6,22 +6,13 @@ import { signOut } from "@/app/login/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatSetsReps } from "@/lib/format";
-import type {
-  Exercise,
-  Questionnaire,
-  Routine,
-  RoutineItem,
-  SessionLog,
-  SessionLogItem,
-} from "@/lib/types";
+import type { Exercise, Questionnaire, RoutineItem, SessionLog, SessionLogItem } from "@/lib/types";
 
 type SessionLogItemWithExercise = SessionLogItem & {
   routine_item: (RoutineItem & { exercise: Exercise | null }) | null;
 };
-
-type RoutineItemWithExercise = RoutineItem & { exercise: Exercise | null };
-type RoutineWithItems = Routine & { items: RoutineItemWithExercise[] };
 
 const RISK_LABEL: Record<string, string> = {
   low: "낮음",
@@ -29,7 +20,12 @@ const RISK_LABEL: Record<string, string> = {
   high: "높음",
 };
 
-export default async function MemberDashboard() {
+export default async function MemberDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -71,36 +67,18 @@ export default async function MemberDashboard() {
     itemsBySession.set(item.session_log_id, list);
   }
 
-  // "루틴 히스토리" - 그날그날의 수업 기록(session_logs)과는 다르게, 이 시기엔
-  // 어떤 방향으로 운동했는지(활성 + 지난 루틴 전체)를 보여주는 별도 섹션이다.
-  const { data: routines } = await supabase
-    .from("routines")
-    .select("*")
-    .eq("member_id", member.id)
-    .order("created_at", { ascending: false })
-    .returns<Routine[]>();
-
-  const routineIds = (routines ?? []).map((r) => r.id);
-  const { data: routineItems } = routineIds.length
-    ? await supabase
-        .from("routine_items")
-        .select("*, exercise:exercise_library(*)")
-        .in("routine_id", routineIds)
-        .order("sort_order")
-        .returns<RoutineItemWithExercise[]>()
-    : { data: [] as RoutineItemWithExercise[] };
-
-  const itemsByRoutine = new Map<string, RoutineItemWithExercise[]>();
-  for (const item of routineItems ?? []) {
-    const list = itemsByRoutine.get(item.routine_id) ?? [];
-    list.push(item);
-    itemsByRoutine.set(item.routine_id, list);
-  }
-
-  const routinesWithItems: RoutineWithItems[] = (routines ?? []).map((r) => ({
-    ...r,
-    items: itemsByRoutine.get(r.id) ?? [],
-  }));
+  const query = q?.trim().toLowerCase() ?? "";
+  const filteredSessionLogs = query
+    ? (sessionLogs ?? []).filter((log) =>
+        (itemsBySession.get(log.id) ?? []).some((item) => {
+          const exercise = item.routine_item?.exercise;
+          return (
+            exercise?.name_ko?.toLowerCase().includes(query) ||
+            exercise?.name_en?.toLowerCase().includes(query)
+          );
+        }),
+      )
+    : (sessionLogs ?? []);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
@@ -155,64 +133,36 @@ export default async function MemberDashboard() {
             nativeButton={false}
             render={<Link href="/member/questionnaire" />}
           >
-            {questionnaire ? "문진표 다시 작성하기" : "문진표 작성하기"}
+            {questionnaire ? "건강 상태 업데이트" : "문진표 작성하기"}
           </Button>
         </CardContent>
       </Card>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">루틴 히스토리</h2>
-
-        {routinesWithItems.length === 0 ? (
-          <Card>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                아직 만들어진 루틴이 없어요.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          routinesWithItems.map((routine) => (
-            <Card key={routine.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between gap-2">
-                  <span>
-                    {(routine.target_categories ?? []).join(", ") || "카테고리 없음"}
-                  </span>
-                  <Badge variant={routine.status === "active" ? "default" : "outline"}>
-                    {routine.status === "active" ? "진행 중" : "지난 루틴"}
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  {new Date(routine.created_at).toLocaleDateString("ko-KR")} 생성
-                </p>
-                <p className="text-sm text-foreground">
-                  {routine.items
-                    .map((i) => i.exercise?.name_ko ?? i.exercise?.name_en)
-                    .filter(Boolean)
-                    .join(", ") || "포함된 운동이 없습니다."}
-                </p>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      <div className="space-y-3">
         <h2 className="text-lg font-semibold text-foreground">지난 수업 기록</h2>
 
-        {(sessionLogs ?? []).length === 0 ? (
+        <form className="flex gap-2">
+          <Input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="운동 이름으로 검색 (예: 데드버그)"
+          />
+          <Button type="submit" variant="outline">
+            검색
+          </Button>
+        </form>
+
+        {filteredSessionLogs.length === 0 ? (
           <Card>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                아직 기록된 수업이 없어요.
+                {query ? "검색 결과가 없습니다." : "아직 기록된 수업이 없어요."}
               </p>
             </CardContent>
           </Card>
         ) : (
-          (sessionLogs ?? []).map((log) => {
+          filteredSessionLogs.map((log) => {
             const items = itemsBySession.get(log.id) ?? [];
             return (
               <Card key={log.id}>

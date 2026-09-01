@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { AssessmentResultRow, Exercise, Questionnaire } from "@/lib/types";
+import type { AssessmentResultRow, BodyComposition, Exercise, Questionnaire } from "@/lib/types";
 
 export type RoutineDraftItem = {
   exerciseId: string;
@@ -19,8 +19,10 @@ export type RoutineDraft = {
 export async function generateRoutine(input: {
   questionnaire: Questionnaire;
   assessmentResults: AssessmentResultRow[];
+  bodyComposition: BodyComposition | null;
   categories: string[];
   candidates: Exercise[];
+  healthUpdatesText?: string;
 }): Promise<RoutineDraft> {
   const candidateIds = input.candidates.map((c) => c.id);
   if (candidateIds.length === 0) {
@@ -55,6 +57,11 @@ export async function generateRoutine(input: {
         .join("\n")
     : "검사 결과 없음";
 
+  const bc = input.bodyComposition;
+  const bodyCompositionSummary = bc
+    ? `측정일 ${bc.measured_at} 기준 - 체중 ${bc.weight_kg ?? "미측정"}kg, 체지방량 ${bc.body_fat_mass_kg ?? "미측정"}kg, 골격근량 ${bc.skeletal_muscle_mass_kg ?? "미측정"}kg`
+    : "인바디 기록 없음";
+
   const client = new Anthropic();
   const response = await client.messages.parse({
     model: "claude-opus-5",
@@ -63,6 +70,8 @@ export async function generateRoutine(input: {
 
 규칙:
 - 회원의 위험도(risk_level)가 high면 강도를 보수적으로(세트/반복 수를 낮게) 구성하고, 부상·수술·지병 이력과 검사 결과에서 "뚜렷한 문제"가 나온 부위는 피하거나 강도를 크게 낮추세요.
+- 건강 상태 업데이트 이력(문진표 제출 이후 회원이 추가로 알려온 내용)도 반드시 반영하세요 - 새로 생긴 통증·부상 부위는 피하거나 강도를 낮추고, 호전됐다는 내용이 있으면 그 부위의 과도한 제한은 완화해도 됩니다.
+- 인바디(체성분) 기록이 있다면 참고하세요: 골격근량이 낮은 편이면 저강도(가벼운 세트/반복 수)부터 시작하도록 구성하세요.
 - 각 후보 운동에는 unit_type이 표시되어 있습니다. unit_type이 reps인 운동은 reps에 적절한 반복 횟수를 채우고 durationSeconds는 반드시 null로 두세요. unit_type이 duration인 운동은 durationSeconds에 적절한 유지 시간(초)을 채우고 reps는 반드시 null로 두세요. 두 값을 동시에 채우거나 둘 다 비우지 마세요.
 - cautionNote에는 유지 시간이나 횟수를 다시 적지 마세요 - 그 값은 reps/durationSeconds 필드로만 표현합니다. cautionNote는 그 운동의 기본 주의사항과 이 회원의 개인 상황(병력, 검사 결과)을 반영한 자세·동작 관련 주의사항만 한국어 1문장으로 작성하세요.
 - reasoning은 전체 루틴 구성 이유를 한국어 2~3문장으로 작성하세요.`,
@@ -75,8 +84,14 @@ export async function generateRoutine(input: {
 [수술 이력] ${input.questionnaire.surgery_history || "없음"}
 [지병] ${input.questionnaire.chronic_condition || "없음"}
 
+[건강 상태 업데이트 이력]
+${input.healthUpdatesText || "없음"}
+
 [검사 결과]
 ${assessmentSummary}
+
+[인바디(체성분)]
+${bodyCompositionSummary}
 
 [선택된 포커스 카테고리] ${input.categories.join(", ")}
 

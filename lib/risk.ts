@@ -27,6 +27,7 @@ export async function classifyRisk(input: {
   injuryHistory: string;
   surgeryHistory: string;
   chronicCondition: string;
+  healthUpdatesText?: string;
 }): Promise<{ riskLevel: RiskLevel; reasoning: string }> {
   const floor = parqFloor(input.parqAnswers);
 
@@ -47,11 +48,12 @@ export async function classifyRisk(input: {
 - PAR-Q 7문항 중 하나라도 "예"가 있으면 최소 mid 이상으로 분류합니다.
 - 심장질환/흉통 관련 항목(심장질환 진단, 활동 중 흉통, 안정 시 흉통, 혈압/심장약 복용)에 "예"가 있으면 반드시 high로 분류합니다.
 - 부상/수술/지병 이력에 심각한 내용이 있으면 위 규칙보다 위험도를 더 높일 수 있지만, 낮출 수는 없습니다.
+- 건강 상태 업데이트 이력(문진표 제출 이후 회원이 추가로 알려온 내용)에 통증 재발, 새로운 부상 등 악화된 내용이 있으면 위험도를 더 높이는 데 반영하세요. 반대로 호전됐다는 내용이 있어도 원 문진표 기반 위험도보다 낮출 수는 없습니다.
 - reasoning은 한국어로 2~3문장으로 간결하게 작성하세요.`,
     messages: [
       {
         role: "user",
-        content: `[PAR-Q 응답]\n${parqSummary}\n\n[부상 이력]\n${input.injuryHistory || "없음"}\n\n[수술 이력]\n${input.surgeryHistory || "없음"}\n\n[지병]\n${input.chronicCondition || "없음"}`,
+        content: `[PAR-Q 응답]\n${parqSummary}\n\n[부상 이력]\n${input.injuryHistory || "없음"}\n\n[수술 이력]\n${input.surgeryHistory || "없음"}\n\n[지병]\n${input.chronicCondition || "없음"}\n\n[건강 상태 업데이트 이력]\n${input.healthUpdatesText || "없음"}`,
       },
     ],
     output_config: { format: zodOutputFormat(RiskSchema) },

@@ -11,11 +11,10 @@ export default async function NewRoutinePage({
   searchParams: Promise<{
     assessmentId?: string;
     category?: string | string[];
-    restartFrom?: string;
   }>;
 }) {
   const { memberId } = await params;
-  const { assessmentId, category, restartFrom } = await searchParams;
+  const { assessmentId, category } = await searchParams;
   if (!assessmentId) redirect(`/trainer/members/${memberId}/assessment`);
 
   const categories = category ? (Array.isArray(category) ? category : [category]) : [];
@@ -44,12 +43,7 @@ export default async function NewRoutinePage({
         </p>
       </div>
 
-      <RoutineDraft
-        memberId={memberId}
-        assessmentId={assessmentId}
-        categories={categories}
-        restartFrom={restartFrom}
-      />
+      <RoutineDraft memberId={memberId} assessmentId={assessmentId} categories={categories} />
     </div>
   );
 }

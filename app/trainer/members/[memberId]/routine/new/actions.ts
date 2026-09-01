@@ -18,7 +18,7 @@ export async function confirmRoutine(payload: {
   // 회원당 여러 개의 active 루틴이 동시에 존재할 수 있다 (예: 하체 위주/상체
   // 위주를 번갈아 사용) - 기존 활성 루틴을 보관 처리하지 않고 그대로 둔 채
   // 새 루틴을 추가한다. 몸 상태 갱신에 따른 일괄 archived 처리는
-  // 문진표 재제출 시점(submitQuestionnaire)에서 담당한다.
+  // 문진표 재제출 또는 건강 상태 업데이트 시점(archiveActiveRoutines)에서 담당한다.
   const { data: routine, error: routineError } = await supabase
     .from("routines")
     .insert({
