@@ -64,7 +64,7 @@ export async function generateRoutine(input: {
 
   const client = new Anthropic();
   const response = await client.messages.parse({
-    model: "claude-opus-5",
+    model: "claude-sonnet-5",
     max_tokens: 4096,
     system: `당신은 피트니스 트레이너를 보조하는 운동 루틴 생성 도우미입니다. 아래 [후보 운동 목록]에 있는 운동만 사용해서 오늘 세션의 운동 루틴을 구성하세요. 목록에 없는 운동을 지어내면 절대 안 됩니다. exerciseId는 반드시 후보 목록의 id 값을 그대로 사용하세요.
 

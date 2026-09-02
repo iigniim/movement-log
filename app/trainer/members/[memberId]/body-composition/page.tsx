@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { BodyComposition, Member } from "@/lib/types";
+import { BodyCompositionTable } from "@/components/body-composition/table";
+import { BodyCompositionChart } from "@/components/body-composition/chart";
+import { getNextAssessmentStepUrl } from "@/lib/assessment-flow";
 import { saveBodyComposition } from "./actions";
+import { BodyCompositionForm } from "./body-composition-form";
 
 export default async function BodyCompositionPage({
   params,
@@ -25,14 +27,16 @@ export default async function BodyCompositionPage({
     .maybeSingle<Member>();
   if (!member) notFound();
 
-  const { data: latest } = await supabase
+  const { data: history } = await supabase
     .from("body_composition_records")
     .select("*")
     .eq("member_id", memberId)
-    .eq("is_latest", true)
-    .maybeSingle<BodyComposition>();
+    .order("measured_at", { ascending: true })
+    .returns<BodyComposition[]>();
 
+  const latest = history?.[history.length - 1] ?? null;
   const today = new Date().toISOString().slice(0, 10);
+  const nextStepUrl = await getNextAssessmentStepUrl(memberId);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
@@ -58,62 +62,31 @@ export default async function BodyCompositionPage({
         </p>
       )}
 
-      <form action={saveBodyComposition.bind(null, memberId)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>측정값 입력</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="measured_at">측정일</Label>
-              <Input
-                id="measured_at"
-                name="measured_at"
-                type="date"
-                required
-                defaultValue={today}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="weight_kg">체중(kg)</Label>
-              <Input
-                id="weight_kg"
-                name="weight_kg"
-                type="number"
-                step="0.1"
-                min="0"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="body_fat_mass_kg">체지방량(kg)</Label>
-              <Input
-                id="body_fat_mass_kg"
-                name="body_fat_mass_kg"
-                type="number"
-                step="0.1"
-                min="0"
-                required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="skeletal_muscle_mass_kg">골격근량(kg)</Label>
-              <Input
-                id="skeletal_muscle_mass_kg"
-                name="skeletal_muscle_mass_kg"
-                type="number"
-                step="0.1"
-                min="0"
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
+      <BodyCompositionForm
+        action={saveBodyComposition.bind(null, memberId)}
+        today={today}
+        submitLabel={latest ? "인바디 갱신하기" : "인바디 등록하기"}
+      />
 
-        <Button type="submit" size="lg" className="w-full">
-          {latest ? "인바디 갱신하기" : "인바디 등록하기"}
+      <div className="flex justify-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          nativeButton={false}
+          render={<Link href={nextStepUrl} />}
+        >
+          건너뛰고 검사 시작
         </Button>
-      </form>
+      </div>
+
+      {!history || history.length === 0 ? (
+        <p className="text-sm text-muted-foreground">아직 등록된 인바디 기록이 없습니다.</p>
+      ) : (
+        <>
+          <BodyCompositionTable record={history[history.length - 1]} />
+          {history.length >= 2 && <BodyCompositionChart records={history} />}
+        </>
+      )}
     </div>
   );
 }

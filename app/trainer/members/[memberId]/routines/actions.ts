@@ -9,7 +9,11 @@ export async function toggleRoutinePin(
   pinned: boolean,
 ) {
   const supabase = await createClient();
-  await supabase.from("routines").update({ is_pinned: pinned }).eq("id", routineId);
+  const { error } = await supabase
+    .from("routines")
+    .update({ is_pinned: pinned })
+    .eq("id", routineId);
+  if (error) throw new Error(error.message);
   revalidatePath(`/trainer/members/${memberId}/routines`);
 }
 

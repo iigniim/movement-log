@@ -86,11 +86,21 @@ export default async function MemberDashboard({
         <h1 className="text-2xl font-semibold text-foreground">
           안녕하세요, {member.name ?? "회원"}님
         </h1>
-        <form action={signOut}>
-          <Button type="submit" variant="ghost" size="sm">
-            로그아웃
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/member/body-composition" />}
+          >
+            인바디 기록 보기
           </Button>
-        </form>
+          <form action={signOut}>
+            <Button type="submit" variant="ghost" size="sm">
+              로그아웃
+            </Button>
+          </form>
+        </div>
       </div>
 
       <p className="rounded-lg bg-muted px-4 py-3 text-xs text-muted-foreground">

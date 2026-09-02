@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, formatRoutineName } from "@/lib/format";
 import type { Assessment, Exercise, Member, Routine, RoutineItem } from "@/lib/types";
-import { toggleRoutinePin } from "./actions";
 import { RoutineNameEditor } from "./routine-name-editor";
+import { PinToggleButton } from "./pin-toggle-button";
 
 type RoutineItemWithExercise = RoutineItem & { exercise: Exercise | null };
 type RoutineWithItems = Routine & { items: RoutineItemWithExercise[] };
@@ -164,13 +164,11 @@ export default async function RoutinesPage({
                 >
                   이 루틴으로 진행
                 </Button>
-                <form
-                  action={toggleRoutinePin.bind(null, memberId, routine.id, !routine.is_pinned)}
-                >
-                  <Button type="submit" variant="ghost" size="sm">
-                    {routine.is_pinned ? "고정 해제" : "상단 고정"}
-                  </Button>
-                </form>
+                <PinToggleButton
+                  memberId={memberId}
+                  routineId={routine.id}
+                  isPinned={routine.is_pinned}
+                />
               </div>
             </Card>
           );

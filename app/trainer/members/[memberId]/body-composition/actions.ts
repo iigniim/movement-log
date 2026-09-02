@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getNextAssessmentStepUrl } from "@/lib/assessment-flow";
 
 export async function saveBodyComposition(memberId: string, formData: FormData) {
   const supabase = await createClient();
@@ -10,6 +11,15 @@ export async function saveBodyComposition(memberId: string, formData: FormData) 
   const weightKg = Number(formData.get("weight_kg"));
   const bodyFatMassKg = Number(formData.get("body_fat_mass_kg"));
   const skeletalMuscleMassKg = Number(formData.get("skeletal_muscle_mass_kg"));
+
+  const toNullableNumber = (key: string) => {
+    const raw = formData.get(key);
+    if (raw === null || raw === "") return null;
+    const n = Number(raw);
+    return Number.isNaN(n) ? null : n;
+  };
+  const bodyFatPercentage = toNullableNumber("body_fat_percentage");
+  const basalMetabolicRateKcal = toNullableNumber("basal_metabolic_rate_kcal");
 
   await supabase
     .from("body_composition_records")
@@ -22,6 +32,8 @@ export async function saveBodyComposition(memberId: string, formData: FormData) 
     weight_kg: weightKg,
     body_fat_mass_kg: bodyFatMassKg,
     skeletal_muscle_mass_kg: skeletalMuscleMassKg,
+    body_fat_percentage: bodyFatPercentage,
+    basal_metabolic_rate_kcal: basalMetabolicRateKcal,
     is_latest: true,
   });
 
@@ -31,5 +43,5 @@ export async function saveBodyComposition(memberId: string, formData: FormData) 
     );
   }
 
-  redirect(`/trainer/members/${memberId}/assessment`);
+  redirect(await getNextAssessmentStepUrl(memberId));
 }

@@ -40,6 +40,8 @@ export type BodyComposition = {
   weight_kg: number | null;
   body_fat_mass_kg: number | null;
   skeletal_muscle_mass_kg: number | null;
+  body_fat_percentage: number | null;
+  basal_metabolic_rate_kcal: number | null;
   is_latest: boolean;
   created_at: string;
 };

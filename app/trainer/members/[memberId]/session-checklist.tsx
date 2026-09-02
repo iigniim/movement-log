@@ -417,6 +417,10 @@ export function SessionChecklist({
               )}
             </CardContent>
           </Card>
+
+          <Button size="lg" className="w-full" onClick={() => setEditing(false)}>
+            수정완료
+          </Button>
         </div>
       ) : (
         <form
@@ -479,7 +483,7 @@ export function SessionChecklist({
         </form>
       )}
 
-      {latestAssessmentId && (
+      {!editing && latestAssessmentId && (
         <div className="text-center">
           <Button
             variant="link"

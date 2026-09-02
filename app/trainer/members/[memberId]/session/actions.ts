@@ -122,5 +122,5 @@ export async function completeSession(
     );
   }
 
-  redirect("/trainer");
+  redirect("/trainer?sessionCompleted=1");
 }

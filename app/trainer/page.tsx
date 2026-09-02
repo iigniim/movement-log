@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import type { Member, Questionnaire, Routine } from "@/lib/types";
+import { SessionCompletedDialog } from "./session-completed-dialog";
 
 const RISK_LABEL: Record<string, string> = {
   low: "낮음",
@@ -15,7 +16,12 @@ const RISK_LABEL: Record<string, string> = {
   high: "높음",
 };
 
-export default async function TrainerDashboard() {
+export default async function TrainerDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ sessionCompleted?: string }>;
+}) {
+  const { sessionCompleted } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -108,6 +114,7 @@ export default async function TrainerDashboard() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-12">
+      <SessionCompletedDialog show={sessionCompleted === "1"} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-foreground">담당 회원</h1>
         <div className="flex items-center gap-2">
@@ -205,6 +212,16 @@ export default async function TrainerDashboard() {
                     </Button>
                   );
                 })()}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  nativeButton={false}
+                  render={
+                    <Link href={`/trainer/members/${member.id}/body-composition`} />
+                  }
+                >
+                  인바디
+                </Button>
               </div>
             </Card>
           );
