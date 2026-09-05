@@ -3,185 +3,143 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import type { Exercise, RoutineItem } from "@/lib/types";
 
-type RoutineItemWithExercise = RoutineItem & { exercise: Exercise | null };
-type ActionResult<T> = { ok: true } & T | { ok: false; error: string };
+export type CompleteSessionItem = {
+  exerciseId: string;
+  sets: number | null;
+  reps: number | null;
+  durationSeconds: number | null;
+  weightKg: number | null;
+  cautionNote: string | null;
+  checked: boolean;
+};
 
-// 진행 중인 active 루틴의 routine_items를 즉시 수정한다 - 확정 전 초안 상태가
-// 아니라, 이 루틴을 다음에 또 쓸 때도 남아있어야 하는 실제 변경이다.
+type ActionResult = { ok: true } | { ok: false; error: string };
 
-function revalidateRoutineViews(memberId: string) {
-  revalidatePath(`/trainer/members/${memberId}/session`);
-  revalidatePath(`/trainer/members/${memberId}/routines`);
-}
-
-export async function addRoutineItem(
-  memberId: string,
-  routineId: string,
-  payload: {
-    exerciseId: string;
-    sets: number;
-    reps: number | null;
-    durationSeconds: number | null;
-    cautionNote: string;
-    weightKg: number | null;
-  },
-): Promise<ActionResult<{ item: RoutineItemWithExercise }>> {
-  const supabase = await createClient();
-
-  const { count } = await supabase
-    .from("routine_items")
-    .select("id", { count: "exact", head: true })
-    .eq("routine_id", routineId);
-
-  const { data, error } = await supabase
-    .from("routine_items")
-    .insert({
-      routine_id: routineId,
-      exercise_id: payload.exerciseId,
-      sets: payload.sets,
-      reps: payload.reps,
-      duration_seconds: payload.durationSeconds,
-      caution_note: payload.cautionNote,
-      weight_kg: payload.weightKg,
-      sort_order: count ?? 0,
-    })
-    .select("*, exercise:exercise_library(*)")
-    .single();
-
-  if (error || !data) {
-    return { ok: false, error: error?.message ?? "운동 추가에 실패했습니다." };
-  }
-  revalidateRoutineViews(memberId);
-  return { ok: true, item: data };
-}
-
-export async function updateRoutineItem(
-  memberId: string,
-  routineItemId: string,
-  patch: Partial<{
-    exerciseId: string;
-    sets: number;
-    reps: number | null;
-    durationSeconds: number | null;
-    cautionNote: string;
-    weightKg: number | null;
-  }>,
-): Promise<ActionResult<{ item: RoutineItemWithExercise }>> {
-  const supabase = await createClient();
-
-  const updates: Record<string, unknown> = {};
-  if (patch.exerciseId !== undefined) updates.exercise_id = patch.exerciseId;
-  if (patch.sets !== undefined) updates.sets = patch.sets;
-  if (patch.reps !== undefined) updates.reps = patch.reps;
-  if (patch.durationSeconds !== undefined) updates.duration_seconds = patch.durationSeconds;
-  if (patch.cautionNote !== undefined) updates.caution_note = patch.cautionNote;
-  if (patch.weightKg !== undefined) updates.weight_kg = patch.weightKg;
-
-  const { data, error } = await supabase
-    .from("routine_items")
-    .update(updates)
-    .eq("id", routineItemId)
-    .select("*, exercise:exercise_library(*)")
-    .single();
-
-  if (error || !data) {
-    return { ok: false, error: error?.message ?? "수정에 실패했습니다." };
-  }
-  revalidateRoutineViews(memberId);
-  return { ok: true, item: data };
-}
-
-export async function deleteRoutineItem(
-  memberId: string,
-  routineItemId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const supabase = await createClient();
-  const { error } = await supabase.from("routine_items").delete().eq("id", routineItemId);
-  if (error) return { ok: false, error: error.message };
-  revalidateRoutineViews(memberId);
-  return { ok: true };
-}
-
+// 수업 완료 시 원본 루틴(과 그 routine_items)은 절대 건드리지 않는다. 대신
+// 오늘 실제로 체크된 운동들로 새 active 루틴을 하나 만들어 그 결과를 기록한다 -
+// 원본 루틴은 다음에 다시 쓸 수 있는 "베이스"로 그대로 남아있어야 하기 때문이다.
 export async function completeSession(
   memberId: string,
   routineId: string,
-  formData: FormData,
-) {
+  payload: { items: CompleteSessionItem[]; freeMemo: string | null },
+): Promise<ActionResult> {
   const supabase = await createClient();
-  const freeMemo = String(formData.get("free_memo") ?? "").trim() || null;
 
-  const { data: sessionLog, error: insertError } = await supabase
-    .from("session_logs")
-    .insert({ member_id: memberId, routine_id: routineId, free_memo: freeMemo })
+  const { data: originalRoutine, error: routineFetchError } = await supabase
+    .from("routines")
+    .select("member_id, assessment_id, body_composition_id")
+    .eq("id", routineId)
+    .single();
+
+  if (routineFetchError || !originalRoutine) {
+    return {
+      ok: false,
+      error: routineFetchError?.message ?? "원본 루틴을 찾을 수 없습니다.",
+    };
+  }
+
+  const checkedItems = payload.items.filter((item) => item.checked);
+
+  // target_categories는 원본 루틴 것을 그대로 복사하지 않고, 실제로 이번에
+  // 포함되는 운동들의 카테고리 중 가장 많이 등장한 것(다수결)으로 다시 계산한다 -
+  // 편집 중 카테고리를 벗어난 운동으로 바꿔도 새 루틴의 이름·카테고리 표시가
+  // 실제 구성과 어긋나지 않게. 최다 개수가 여러 카테고리에 걸쳐 동점이면 그
+  // 카테고리들을 전부 담는다.
+  const checkedExerciseIds = [...new Set(checkedItems.map((item) => item.exerciseId))];
+  const { data: exercises } = checkedExerciseIds.length
+    ? await supabase
+        .from("exercise_library")
+        .select("id, category")
+        .in("id", checkedExerciseIds)
+    : { data: [] as { id: string; category: string | null }[] };
+
+  const categoryByExerciseId = new Map((exercises ?? []).map((e) => [e.id, e.category]));
+  const categoryCounts = new Map<string, number>();
+  for (const item of checkedItems) {
+    const category = categoryByExerciseId.get(item.exerciseId);
+    if (!category) continue;
+    categoryCounts.set(category, (categoryCounts.get(category) ?? 0) + 1);
+  }
+  const maxCount = Math.max(0, ...categoryCounts.values());
+  const targetCategories = [...categoryCounts.entries()]
+    .filter(([, count]) => count === maxCount)
+    .map(([category]) => category);
+
+  const { data: newRoutine, error: newRoutineError } = await supabase
+    .from("routines")
+    .insert({
+      member_id: originalRoutine.member_id,
+      assessment_id: originalRoutine.assessment_id,
+      body_composition_id: originalRoutine.body_composition_id,
+      target_categories: targetCategories,
+      status: "active",
+      is_pinned: false,
+      name: null,
+    })
     .select("id")
     .single();
 
-  if (insertError || !sessionLog) {
-    redirect(
-      `/trainer/members/${memberId}/session?error=${encodeURIComponent(insertError?.message ?? "저장에 실패했습니다.")}`,
-    );
+  if (newRoutineError || !newRoutine) {
+    return { ok: false, error: newRoutineError?.message ?? "루틴 생성에 실패했습니다." };
   }
 
-  const checkedRoutineItemIds = Array.from(formData.keys())
-    .filter((key) => key.startsWith("item_"))
-    .map((key) => key.slice("item_".length));
+  // 오늘 체크리스트의 기반이 된 그 루틴 하나만 archived 처리한다 - routineId로
+  // 정확히 찍어서, 회원이 별도로 갖고 있는 다른 active 루틴은 건드리지 않는다.
+  await supabase.from("routines").update({ status: "archived" }).eq("id", routineId);
 
-  if (checkedRoutineItemIds.length) {
-    // routine_items는 이후 트레이너가 자유롭게 수정하는 "현재 상태"이므로,
-    // 여기서 그 시점의 exercise_id/sets/reps/duration_seconds/weight_kg 값을
-    // session_log_items에 스냅샷으로 복사해 둔다 - 그렇지 않으면 나중에 routine_item이
-    // 바뀔 때 과거 기록까지 조용히 덮어써진 것처럼 보인다.
-    const { data: routineItems } = await supabase
-      .from("routine_items")
-      .select("id, exercise_id, sets, reps, duration_seconds, weight_kg")
-      .in("id", checkedRoutineItemIds);
+  const rows = checkedItems.map((item, index) => ({
+    routine_id: newRoutine.id,
+    exercise_id: item.exerciseId,
+    sets: item.sets,
+    reps: item.reps,
+    duration_seconds: item.durationSeconds,
+    weight_kg: item.weightKg,
+    caution_note: item.cautionNote,
+    sort_order: index,
+  }));
 
-    const routineItemById = new Map((routineItems ?? []).map((r) => [r.id, r]));
+  const { data: insertedItems, error: itemsError } = rows.length
+    ? await supabase.from("routine_items").insert(rows).select("id")
+    : { data: [] as { id: string }[], error: null };
 
-    await supabase.from("session_log_items").insert(
-      checkedRoutineItemIds.map((routineItemId) => {
-        const snapshot = routineItemById.get(routineItemId);
-        return {
-          session_log_id: sessionLog.id,
-          routine_item_id: routineItemId,
-          checked: true,
-          exercise_id: snapshot?.exercise_id ?? null,
-          sets: snapshot?.sets ?? null,
-          reps: snapshot?.reps ?? null,
-          duration_seconds: snapshot?.duration_seconds ?? null,
-          weight_kg: snapshot?.weight_kg ?? null,
-        };
-      }),
-    );
+  if (itemsError) {
+    return { ok: false, error: itemsError.message };
   }
 
-  // 체크하지 않은 운동은 이 루틴에서 완전히 제거한다 - 과거 기록은 이미
-  // session_log_items에 스냅샷으로 남아있어 routine_item에 더 이상 의존하지
-  // 않으므로 안전하다. 다만 그 routine_item을 가리키던 session_log_items 행이
-  // 남아있으면 외래키(NO ACTION)에 걸려 delete가 실패하니, 참조만 먼저 끊는다.
-  const { data: allRoutineItems } = await supabase
-    .from("routine_items")
+  const { data: sessionLog, error: sessionLogError } = await supabase
+    .from("session_logs")
+    .insert({ member_id: memberId, routine_id: newRoutine.id, free_memo: payload.freeMemo })
     .select("id")
-    .eq("routine_id", routineId);
+    .single();
 
-  const uncheckedRoutineItemIds = (allRoutineItems ?? [])
-    .map((r) => r.id)
-    .filter((id) => !checkedRoutineItemIds.includes(id));
-
-  if (uncheckedRoutineItemIds.length) {
-    await supabase
-      .from("session_log_items")
-      .update({ routine_item_id: null })
-      .in("routine_item_id", uncheckedRoutineItemIds);
-
-    await supabase.from("routine_items").delete().in("id", uncheckedRoutineItemIds);
+  if (sessionLogError || !sessionLog) {
+    return {
+      ok: false,
+      error: sessionLogError?.message ?? "수업 기록 저장에 실패했습니다.",
+    };
   }
 
-  // 마지막 진행 시각이 /trainer, /trainer/members/[memberId]/routines에도
-  // 나오므로, redirect 대상인 /trainer 외에 그 페이지들도 캐시를 무효화한다.
+  if (checkedItems.length) {
+    // routine_item_id는 방금 만든 새 routine_items를 참고용으로 가리키고,
+    // sets/reps/duration_seconds/weight_kg는 그 값이 나중에 바뀌어도 이 기록엔
+    // 영향이 없도록 스냅샷으로 별도 저장한다.
+    await supabase.from("session_log_items").insert(
+      checkedItems.map((item, index) => ({
+        session_log_id: sessionLog.id,
+        routine_item_id: insertedItems?.[index]?.id ?? null,
+        checked: true,
+        exercise_id: item.exerciseId,
+        sets: item.sets,
+        reps: item.reps,
+        duration_seconds: item.durationSeconds,
+        weight_kg: item.weightKg,
+      })),
+    );
+  }
+
+  // 새 루틴이 /trainer, /trainer/members/[memberId]/routines에 바로 보여야 한다.
   revalidatePath(`/trainer/members/${memberId}/routines`);
   revalidatePath("/trainer");
-  redirect("/trainer?sessionCompleted=1");
+  redirect(`/trainer/members/${memberId}/routines?sessionCompleted=1`);
 }

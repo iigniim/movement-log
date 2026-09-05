@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -27,34 +27,48 @@ export function SessionChecklist({
 }) {
   const [items, setItems] = useState(initialItems);
   const [editing, setEditing] = useState(false);
-  const checklistRef = useRef<HTMLDivElement>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [freeMemo, setFreeMemo] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function toggleSelectAll() {
-    const boxes = checklistRef.current?.querySelectorAll<HTMLInputElement>(
-      'input[type="checkbox"]',
-    );
-    if (!boxes || boxes.length === 0) return;
-    const allChecked = Array.from(boxes).every((box) => box.checked);
-    boxes.forEach((box) => {
-      box.checked = !allChecked;
+  function toggleItemChecked(id: string) {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }
 
-  function handleChecklistSubmit(e: React.FormEvent<HTMLFormElement>) {
-    const boxes = checklistRef.current?.querySelectorAll<HTMLInputElement>(
-      'input[type="checkbox"]',
+  function toggleSelectAll() {
+    setCheckedIds((prev) =>
+      prev.size === items.length ? new Set() : new Set(items.map((it) => it.id)),
     );
-    const uncheckedCount = boxes
-      ? Array.from(boxes).filter((box) => !box.checked).length
-      : 0;
-    if (
-      uncheckedCount > 0 &&
-      !window.confirm(
-        `체크하지 않은 운동 ${uncheckedCount}개는 루틴에서 삭제됩니다. 계속할까요?`,
-      )
-    ) {
-      e.preventDefault();
+  }
+
+  async function handleComplete() {
+    setSubmitting(true);
+    setError(null);
+
+    const result = await completeSession(memberId, routineId, {
+      items: items.map((item) => ({
+        exerciseId: item.exerciseId,
+        sets: item.sets,
+        reps: item.reps,
+        durationSeconds: item.durationSeconds,
+        weightKg: item.weightKg,
+        cautionNote: item.cautionNote,
+        checked: checkedIds.has(item.id),
+      })),
+      freeMemo: freeMemo.trim() || null,
+    });
+
+    if (!result.ok) {
+      setSubmitting(false);
+      setError(result.error);
     }
+    // 성공 시 completeSession이 서버에서 리다이렉트하므로 여기서 할 일은 없다.
   }
 
   return (
@@ -66,9 +80,6 @@ export function SessionChecklist({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={() => setEditing((e) => !e)}>
-          {editing ? "체크리스트로 돌아가기" : "운동 추가/수정"}
-        </Button>
         <Button
           variant="ghost"
           size="sm"
@@ -80,19 +91,9 @@ export function SessionChecklist({
       </div>
 
       {editing ? (
-        <RoutineEditor
-          memberId={memberId}
-          routineId={routineId}
-          items={items}
-          onItemsChange={setItems}
-          onDone={() => setEditing(false)}
-        />
+        <RoutineEditor items={items} onItemsChange={setItems} onDone={() => setEditing(false)} />
       ) : (
-        <form
-          action={completeSession.bind(null, memberId, routineId)}
-          onSubmit={handleChecklistSubmit}
-          className="space-y-6"
-        >
+        <div className="space-y-6">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>운동 체크리스트</CardTitle>
@@ -100,7 +101,7 @@ export function SessionChecklist({
                 전체 선택
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4" ref={checklistRef}>
+            <CardContent className="space-y-4">
               {items.map((item) => (
                 <label
                   key={item.id}
@@ -108,7 +109,8 @@ export function SessionChecklist({
                 >
                   <input
                     type="checkbox"
-                    name={`item_${item.id}`}
+                    checked={checkedIds.has(item.id)}
+                    onChange={() => toggleItemChecked(item.id)}
                     className="mt-1 size-4 rounded border-input accent-primary"
                   />
                   <div className="space-y-1">
@@ -126,6 +128,9 @@ export function SessionChecklist({
                   </div>
                 </label>
               ))}
+              <Button className="w-full" onClick={() => setEditing(true)}>
+                운동 추가/수정
+              </Button>
             </CardContent>
           </Card>
 
@@ -138,15 +143,26 @@ export function SessionChecklist({
                 <Label htmlFor="free_memo">
                   그날 루틴에 없던 변형 동작이 있었다면 짧게 기록해 주세요 (선택)
                 </Label>
-                <Textarea id="free_memo" name="free_memo" rows={3} />
+                <Textarea
+                  id="free_memo"
+                  rows={3}
+                  value={freeMemo}
+                  onChange={(e) => setFreeMemo(e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>
 
-          <Button type="submit" size="lg" className="w-full">
-            수업 완료
+          {error && (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <Button size="lg" className="w-full" disabled={submitting} onClick={handleComplete}>
+            {submitting ? "저장 중..." : "수업 완료"}
           </Button>
-        </form>
+        </div>
       )}
 
       {!editing && latestAssessmentId && (

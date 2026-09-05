@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/client";
 import { ROUTINE_CATEGORIES } from "@/lib/assessment";
 import { needsWeightInput } from "@/lib/format";
 import type { Exercise } from "@/lib/types";
-import { addRoutineItem, deleteRoutineItem, updateRoutineItem } from "./session/actions";
 
 export type RoutineEditorItem = {
   id: string;
@@ -33,24 +32,18 @@ function defaultUnitsFor(exercise: Exercise): {
     : { reps: 10, durationSeconds: null };
 }
 
-// 활성 루틴의 운동 교체·삭제·추가·세트/횟수/무게 수정 UI. 체크리스트 편집
-// 모드와 트레이너용 루틴 카드의 "수정" 모드가 동일한 로직(서버 액션 호출,
-// 무게 미입력 경고/저지)을 공유하도록 뽑아낸 공용 컴포넌트다.
+// 운동 교체·삭제·추가·세트/횟수/무게 수정 UI. 순수 클라이언트 로컬 상태만
+// 바꾸고 서버에는 아무것도 즉시 반영하지 않는다 - 실제 저장은 이 화면을
+// 감싸는 쪽(체크리스트의 "수업 완료")에서 한 번에 이뤄진다.
 export function RoutineEditor({
-  memberId,
-  routineId,
   items,
   onItemsChange,
   onDone,
 }: {
-  memberId: string;
-  routineId: string;
   items: RoutineEditorItem[];
   onItemsChange: (items: RoutineEditorItem[]) => void;
   onDone: () => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
-
   const [swappingId, setSwappingId] = useState<string | null>(null);
   const [swapCategory, setSwapCategory] = useState("");
   const [swapExercises, setSwapExercises] = useState<Exercise[] | null>(null);
@@ -63,30 +56,6 @@ export function RoutineEditor({
 
   function updateItemLocal(id: string, patch: Partial<RoutineEditorItem>) {
     onItemsChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-  }
-
-  async function handleSetsChange(id: string, sets: number) {
-    updateItemLocal(id, { sets });
-    const result = await updateRoutineItem(memberId, id, { sets });
-    if (!result.ok) setError(result.error);
-  }
-
-  async function handleRepsChange(id: string, reps: number) {
-    updateItemLocal(id, { reps });
-    const result = await updateRoutineItem(memberId, id, { reps });
-    if (!result.ok) setError(result.error);
-  }
-
-  async function handleDurationChange(id: string, durationSeconds: number) {
-    updateItemLocal(id, { durationSeconds });
-    const result = await updateRoutineItem(memberId, id, { durationSeconds });
-    if (!result.ok) setError(result.error);
-  }
-
-  async function handleWeightChange(id: string, weightKg: number | null) {
-    updateItemLocal(id, { weightKg });
-    const result = await updateRoutineItem(memberId, id, { weightKg });
-    if (!result.ok) setError(result.error);
   }
 
   function openSwap(item: RoutineEditorItem) {
@@ -118,38 +87,21 @@ export function RoutineEditor({
     setSwapExercises(data ?? []);
   }
 
-  async function handleSwapSelect(itemId: string, newExerciseId: string, options: Exercise[]) {
+  function handleSwapSelect(itemId: string, newExerciseId: string, options: Exercise[]) {
     const newExercise = options.find((c) => c.id === newExerciseId);
     if (!newExercise) return;
     const units = defaultUnitsFor(newExercise);
-    const cautionNote = newExercise.default_caution ?? "";
-
-    const result = await updateRoutineItem(memberId, itemId, {
-      exerciseId: newExercise.id,
-      cautionNote,
-      weightKg: null,
-      ...units,
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
     updateItemLocal(itemId, {
       exerciseId: newExercise.id,
       exercise: newExercise,
-      cautionNote,
+      cautionNote: newExercise.default_caution ?? "",
       weightKg: null,
       ...units,
     });
     closeSwap();
   }
 
-  async function handleDelete(itemId: string) {
-    const result = await deleteRoutineItem(memberId, itemId);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
+  function handleDelete(itemId: string) {
     onItemsChange(items.filter((it) => it.id !== itemId));
   }
 
@@ -168,32 +120,20 @@ export function RoutineEditor({
     setAddExercises(data ?? []);
   }
 
-  async function handleAddExercise(exerciseId: string) {
+  function handleAddExercise(exerciseId: string) {
     const exercise = (addExercises ?? []).find((c) => c.id === exerciseId);
     if (!exercise) return;
     const units = defaultUnitsFor(exercise);
-    const cautionNote = exercise.default_caution ?? "";
     const weightKg = needsWeightInput(exercise.equipment) ? addWeightKg : null;
 
-    const result = await addRoutineItem(memberId, routineId, {
-      exerciseId: exercise.id,
-      sets: 3,
-      cautionNote,
-      weightKg,
-      ...units,
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
     onItemsChange([
       ...items,
       {
-        id: result.item.id,
+        id: `${exercise.id}-${Date.now()}`,
         exerciseId: exercise.id,
         exercise,
         sets: 3,
-        cautionNote,
+        cautionNote: exercise.default_caution ?? "",
         weightKg,
         ...units,
       },
@@ -215,12 +155,6 @@ export function RoutineEditor({
 
   return (
     <div className="space-y-3">
-      {error && (
-        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-
       {items.map((item) => {
         const swapOptions = (swapExercises ?? []).filter(
           (c) => c.id === item.exerciseId || !usedExerciseIds.has(c.id),
@@ -240,7 +174,9 @@ export function RoutineEditor({
                     type="number"
                     min={1}
                     value={item.sets ?? 1}
-                    onChange={(e) => handleSetsChange(item.id, Number(e.target.value) || 1)}
+                    onChange={(e) =>
+                      updateItemLocal(item.id, { sets: Number(e.target.value) || 1 })
+                    }
                     className="w-16"
                   />
                 </div>
@@ -253,10 +189,9 @@ export function RoutineEditor({
                       step="0.5"
                       value={item.weightKg ?? ""}
                       onChange={(e) =>
-                        handleWeightChange(
-                          item.id,
-                          e.target.value === "" ? null : Number(e.target.value),
-                        )
+                        updateItemLocal(item.id, {
+                          weightKg: e.target.value === "" ? null : Number(e.target.value),
+                        })
                       }
                       className="w-20"
                     />
@@ -270,7 +205,9 @@ export function RoutineEditor({
                       min={1}
                       value={item.durationSeconds}
                       onChange={(e) =>
-                        handleDurationChange(item.id, Number(e.target.value) || 1)
+                        updateItemLocal(item.id, {
+                          durationSeconds: Number(e.target.value) || 1,
+                        })
                       }
                       className="w-20"
                     />
@@ -282,7 +219,9 @@ export function RoutineEditor({
                       type="number"
                       min={1}
                       value={item.reps ?? 1}
-                      onChange={(e) => handleRepsChange(item.id, Number(e.target.value) || 1)}
+                      onChange={(e) =>
+                        updateItemLocal(item.id, { reps: Number(e.target.value) || 1 })
+                      }
                       className="w-20"
                     />
                   </div>

@@ -4,15 +4,21 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export function SessionCompletedDialog({ show }: { show: boolean }) {
+export function SessionCompletedDialog({
+  show,
+  closePath = "/trainer",
+}: {
+  show: boolean;
+  closePath?: string;
+}) {
   const [visible, setVisible] = useState(show);
 
   if (!visible) return null;
 
   function close() {
-    // router.replace would re-fetch /trainer's server component, which loops
-    // admin.auth.admin.getUserById per member (N+1) - just clean up the URL instead.
-    window.history.replaceState(null, "", "/trainer");
+    // router.replace would re-fetch the server component (e.g. /trainer loops
+    // admin.auth.admin.getUserById per member, N+1) - just clean up the URL instead.
+    window.history.replaceState(null, "", closePath);
     setVisible(false);
   }
 

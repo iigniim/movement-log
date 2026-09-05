@@ -3,11 +3,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { getSessionHistory } from "@/lib/session-history";
 import type { Assessment, Exercise, Member, Routine, RoutineItem } from "@/lib/types";
 import { ActiveRoutineCard } from "./active-routine-card";
-import { SessionHistorySection } from "./session-history-section";
+import { SessionCompletedDialog } from "../../../session-completed-dialog";
 
 type RoutineItemWithExercise = RoutineItem & { exercise: Exercise | null };
 type RoutineWithItems = Routine & { items: RoutineItemWithExercise[] };
@@ -17,10 +15,10 @@ export default async function RoutinesPage({
   searchParams,
 }: {
   params: Promise<{ memberId: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ sessionCompleted?: string }>;
 }) {
   const { memberId } = await params;
-  const { q } = await searchParams;
+  const { sessionCompleted } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -99,11 +97,12 @@ export default async function RoutinesPage({
     .limit(1)
     .maybeSingle<Assessment>();
 
-  const query = q?.trim() ?? "";
-  const sessionHistory = await getSessionHistory(supabase, memberId, { query });
-
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
+      <SessionCompletedDialog
+        show={sessionCompleted === "1"}
+        closePath={`/trainer/members/${memberId}/routines`}
+      />
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
@@ -153,24 +152,6 @@ export default async function RoutinesPage({
             lastProgressedAt={lastProgressedByRoutine.get(routine.id)}
           />
         ))}
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">지난 수업 기록</h2>
-
-        <form className="flex gap-2">
-          <Input
-            type="search"
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="운동 이름으로 검색 (예: 데드버그)"
-          />
-          <Button type="submit" variant="outline">
-            검색
-          </Button>
-        </form>
-
-        <SessionHistorySection entries={sessionHistory} query={query} />
       </div>
     </div>
   );
