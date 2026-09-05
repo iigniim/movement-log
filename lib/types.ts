@@ -101,6 +101,7 @@ export type RoutineItem = {
   caution_note: string | null;
   sort_order: number | null;
   duration_seconds: number | null;
+  weight_kg: number | null;
 };
 
 export type SessionLog = {
@@ -117,4 +118,9 @@ export type SessionLogItem = {
   session_log_id: string;
   routine_item_id: string | null;
   checked: boolean;
+  exercise_id: string | null;
+  sets: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  weight_kg: number | null;
 };

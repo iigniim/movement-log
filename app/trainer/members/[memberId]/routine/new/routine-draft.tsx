@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ROUTINE_CATEGORIES } from "@/lib/assessment";
 import type { RoutineDraftItem } from "@/lib/routine-generate";
 import type { Exercise } from "@/lib/types";
-import { formatSetsReps } from "@/lib/format";
+import { formatSetsReps, needsWeightInput } from "@/lib/format";
 import { SessionChecklist, type ChecklistItem } from "../../session-checklist";
 import { confirmRoutine } from "./actions";
 
@@ -49,6 +49,7 @@ export function RoutineDraft({
   const [addCategory, setAddCategory] = useState("");
   const [addExercises, setAddExercises] = useState<Exercise[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [confirmedRoutine, setConfirmedRoutine] = useState<{
     routineId: string;
@@ -70,14 +71,18 @@ export function RoutineDraft({
 
         const rawItems: (RoutineDraftItem & { exercise?: Exercise })[] = result.items;
         setBodyCompositionId(result.bodyCompositionId ?? null);
+        setWarnings(result.warnings ?? []);
         setOriginalDraft({
-          items: rawItems.map(({ exerciseId, sets, reps, durationSeconds, cautionNote }) => ({
-            exerciseId,
-            sets,
-            reps,
-            durationSeconds,
-            cautionNote,
-          })),
+          items: rawItems.map(
+            ({ exerciseId, sets, reps, durationSeconds, cautionNote, weightKg }) => ({
+              exerciseId,
+              sets,
+              reps,
+              durationSeconds,
+              cautionNote,
+              weightKg,
+            }),
+          ),
           reasoning: result.reasoning,
         });
         setItems(
@@ -133,6 +138,7 @@ export function RoutineDraft({
       exerciseId: newExerciseId,
       exercise: newExercise,
       cautionNote: newExercise.default_caution ?? "",
+      weightKg: null,
       ...defaultUnitsFor(newExercise),
     });
     closeSwap();
@@ -166,6 +172,7 @@ export function RoutineDraft({
       exercise,
       sets: 3,
       cautionNote: exercise.default_caution ?? "",
+      weightKg: null,
       ...defaultUnitsFor(exercise),
     };
     setItems((prev) => (prev ? [...prev, newItem] : prev));
@@ -183,13 +190,16 @@ export function RoutineDraft({
       memberId,
       assessmentId,
       categories,
-      finalItems: items.map(({ exerciseId, sets, reps, durationSeconds, cautionNote }) => ({
-        exerciseId,
-        sets,
-        reps,
-        durationSeconds,
-        cautionNote,
-      })),
+      finalItems: items.map(
+        ({ exerciseId, sets, reps, durationSeconds, cautionNote, weightKg }) => ({
+          exerciseId,
+          sets,
+          reps,
+          durationSeconds,
+          cautionNote,
+          weightKg,
+        }),
+      ),
       aiSnapshot: originalDraft,
       bodyCompositionId,
     });
@@ -210,6 +220,7 @@ export function RoutineDraft({
         reps: it.reps,
         durationSeconds: it.durationSeconds,
         cautionNote: it.cautionNote,
+        weightKg: it.weightKg,
       })),
     });
   }
@@ -253,6 +264,14 @@ export function RoutineDraft({
         <p className="text-sm text-muted-foreground">{originalDraft.reasoning}</p>
       )}
 
+      {warnings.length > 0 && (
+        <div className="space-y-1 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
+          {warnings.map((w) => (
+            <p key={w}>{w}</p>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
         {items.map((item) => {
           const swapOptions = (swapExercises ?? []).filter(
@@ -268,7 +287,7 @@ export function RoutineDraft({
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  {formatSetsReps(item.sets, item.reps, item.durationSeconds)}
+                  {formatSetsReps(item.sets, item.reps, item.durationSeconds, item.weightKg)}
                 </p>
 
                 <div className="flex flex-wrap items-end gap-3">
@@ -284,6 +303,24 @@ export function RoutineDraft({
                       className="w-16"
                     />
                   </div>
+
+                  {needsWeightInput(item.exercise?.equipment) && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">무게(kg)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.5"
+                        value={item.weightKg ?? ""}
+                        onChange={(e) =>
+                          updateItem(item.key, {
+                            weightKg: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className="w-20"
+                      />
+                    </div>
+                  )}
 
                   {item.durationSeconds != null ? (
                     <div className="space-y-1">
@@ -317,6 +354,10 @@ export function RoutineDraft({
                     </div>
                   )}
                 </div>
+
+                {needsWeightInput(item.exercise?.equipment) && item.weightKg == null && (
+                  <p className="text-xs text-destructive/70">⚠️ 무게가 입력되지 않았습니다</p>
+                )}
 
                 {item.cautionNote && (
                   <p className="text-xs text-muted-foreground">

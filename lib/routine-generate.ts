@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { needsWeightInput } from "@/lib/format";
 import type { AssessmentResultRow, BodyComposition, Exercise, Questionnaire } from "@/lib/types";
 
 export type RoutineDraftItem = {
@@ -9,11 +10,13 @@ export type RoutineDraftItem = {
   reps: number | null;
   durationSeconds: number | null;
   cautionNote: string;
+  weightKg: number | null;
 };
 
 export type RoutineDraft = {
   items: RoutineDraftItem[];
   reasoning: string;
+  warnings?: string[];
 };
 
 export async function generateRoutine(input: {
@@ -24,9 +27,34 @@ export async function generateRoutine(input: {
   candidates: Exercise[];
   healthUpdatesText?: string;
 }): Promise<RoutineDraft> {
-  const candidateIds = input.candidates.map((c) => c.id);
+  // 고위험군(mid/high)은 바벨/덤벨/머신처럼 무게가 들어가는 운동을 후보에서
+  // 제외하고 맨몸/밴드 운동만 사용한다 - "AI는 라이브러리 안에서만 루틴 구성"
+  // 원칙과 "고위험군은 안전 우선" 원칙을 장비 확장 이후에도 그대로 적용한 것.
+  const isLowRisk = input.questionnaire.risk_level === "low";
+  const candidates = isLowRisk
+    ? input.candidates
+    : input.candidates.filter((c) => !needsWeightInput(c.equipment));
+
+  const warnings: string[] = [];
+  if (!isLowRisk) {
+    for (const category of input.categories) {
+      const hadAny = input.candidates.some((c) => c.category === category);
+      const hasAfterFilter = candidates.some((c) => c.category === category);
+      if (hadAny && !hasAfterFilter) {
+        const msg = `"${category}" 카테고리는 고위험군에 안전한 맨몸/밴드 운동이 없어 후보에서 제외되었습니다.`;
+        warnings.push(msg);
+        console.warn(`[routine-generate] ${msg}`);
+      }
+    }
+  }
+
+  const candidateIds = candidates.map((c) => c.id);
   if (candidateIds.length === 0) {
-    return { items: [], reasoning: "선택한 카테고리에 해당하는 운동이 없습니다." };
+    return {
+      items: [],
+      reasoning: "선택한 카테고리에 해당하는 운동이 없습니다.",
+      warnings: warnings.length ? warnings : undefined,
+    };
   }
 
   const RoutineItemSchema = z.object({
@@ -41,7 +69,7 @@ export async function generateRoutine(input: {
     reasoning: z.string(),
   });
 
-  const candidateList = input.candidates
+  const candidateList = candidates
     .map(
       (c) =>
         `- id: ${c.id} | ${c.name_ko ?? c.name_en} (${c.category}, ${c.equipment ?? "맨몸"}, unit_type: ${c.unit_type})${c.default_caution ? ` | 기본 주의사항: ${c.default_caution}` : ""}`,
@@ -103,11 +131,17 @@ ${candidateList}`,
   });
 
   const parsed = response.parsed_output;
-  if (!parsed) return { items: [], reasoning: "루틴 생성에 실패했습니다." };
+  if (!parsed) {
+    return {
+      items: [],
+      reasoning: "루틴 생성에 실패했습니다.",
+      warnings: warnings.length ? warnings : undefined,
+    };
+  }
 
   // exerciseId가 후보 목록에 있는지 다시 한번 코드 레벨에서 검증 - zod enum이 이미
   // 강제하지만, 존재하지 않는 운동은 절대 안 된다는 요구사항이라 이중으로 방어한다.
-  const candidateById = new Map(input.candidates.map((c) => [c.id, c]));
+  const candidateById = new Map(candidates.map((c) => [c.id, c]));
   const items = parsed.items
     .filter((item) => candidateById.has(item.exerciseId))
     // reps/durationSeconds는 모델이 어느 필드를 채웠는지가 아니라 운동의 실제
@@ -120,8 +154,11 @@ ${candidateList}`,
         ...item,
         reps: isDuration ? null : magnitude,
         durationSeconds: isDuration ? magnitude : null,
+        // AI는 무게를 정하지 않는다 - 무게가 필요한 운동이면 트레이너가 초안
+        // 화면에서 직접 입력한다.
+        weightKg: null,
       };
     });
 
-  return { items, reasoning: parsed.reasoning };
+  return { items, reasoning: parsed.reasoning, warnings: warnings.length ? warnings : undefined };
 }

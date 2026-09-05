@@ -6,34 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
-import { ROUTINE_CATEGORIES } from "@/lib/assessment";
 import { formatSetsReps } from "@/lib/format";
-import type { Exercise } from "@/lib/types";
-import { addRoutineItem, completeSession, deleteRoutineItem, updateRoutineItem } from "./session/actions";
+import { completeSession } from "./session/actions";
+import { RoutineEditor, type RoutineEditorItem } from "./routine-editor";
 
-export type ChecklistItem = {
-  id: string;
-  exerciseId: string;
-  exercise: Exercise | null;
-  sets: number | null;
-  reps: number | null;
-  durationSeconds: number | null;
-  cautionNote: string | null;
-};
-
-const selectClass =
-  "h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
-
-function defaultUnitsFor(exercise: Exercise): {
-  reps: number | null;
-  durationSeconds: number | null;
-} {
-  return exercise.unit_type === "duration"
-    ? { reps: null, durationSeconds: 30 }
-    : { reps: 10, durationSeconds: null };
-}
+export type { RoutineEditorItem as ChecklistItem } from "./routine-editor";
 
 export function SessionChecklist({
   memberId,
@@ -44,13 +21,12 @@ export function SessionChecklist({
 }: {
   memberId: string;
   routineId: string;
-  items: ChecklistItem[];
+  items: RoutineEditorItem[];
   justConfirmed?: boolean;
   latestAssessmentId?: string;
 }) {
   const [items, setItems] = useState(initialItems);
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const checklistRef = useRef<HTMLDivElement>(null);
 
   function toggleSelectAll() {
@@ -64,135 +40,22 @@ export function SessionChecklist({
     });
   }
 
-  const [swappingId, setSwappingId] = useState<string | null>(null);
-  const [swapCategory, setSwapCategory] = useState("");
-  const [swapExercises, setSwapExercises] = useState<Exercise[] | null>(null);
-
-  const [adding, setAdding] = useState(false);
-  const [addCategory, setAddCategory] = useState("");
-  const [addExercises, setAddExercises] = useState<Exercise[] | null>(null);
-
-  function updateItemLocal(id: string, patch: Partial<ChecklistItem>) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-  }
-
-  async function handleSetsChange(id: string, sets: number) {
-    updateItemLocal(id, { sets });
-    const result = await updateRoutineItem(id, { sets });
-    if (!result.ok) setError(result.error);
-  }
-
-  async function handleRepsChange(id: string, reps: number) {
-    updateItemLocal(id, { reps });
-    const result = await updateRoutineItem(id, { reps });
-    if (!result.ok) setError(result.error);
-  }
-
-  async function handleDurationChange(id: string, durationSeconds: number) {
-    updateItemLocal(id, { durationSeconds });
-    const result = await updateRoutineItem(id, { durationSeconds });
-    if (!result.ok) setError(result.error);
-  }
-
-  function openSwap(item: ChecklistItem) {
-    if (swappingId === item.id) {
-      closeSwap();
-      return;
+  function handleChecklistSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const boxes = checklistRef.current?.querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    const uncheckedCount = boxes
+      ? Array.from(boxes).filter((box) => !box.checked).length
+      : 0;
+    if (
+      uncheckedCount > 0 &&
+      !window.confirm(
+        `체크하지 않은 운동 ${uncheckedCount}개는 루틴에서 삭제됩니다. 계속할까요?`,
+      )
+    ) {
+      e.preventDefault();
     }
-    setSwappingId(item.id);
-    setSwapCategory("");
-    setSwapExercises(null);
   }
-
-  function closeSwap() {
-    setSwappingId(null);
-    setSwapCategory("");
-    setSwapExercises(null);
-  }
-
-  async function handleSwapCategoryChange(category: string) {
-    setSwapCategory(category);
-    setSwapExercises(null);
-    if (!category) return;
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("exercise_library")
-      .select("*")
-      .eq("category", category)
-      .returns<Exercise[]>();
-    setSwapExercises(data ?? []);
-  }
-
-  async function handleSwapSelect(itemId: string, newExerciseId: string, options: Exercise[]) {
-    const newExercise = options.find((c) => c.id === newExerciseId);
-    if (!newExercise) return;
-    const units = defaultUnitsFor(newExercise);
-    const cautionNote = newExercise.default_caution ?? "";
-
-    const result = await updateRoutineItem(itemId, {
-      exerciseId: newExercise.id,
-      cautionNote,
-      ...units,
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    updateItemLocal(itemId, { exerciseId: newExercise.id, exercise: newExercise, cautionNote, ...units });
-    closeSwap();
-  }
-
-  async function handleDelete(itemId: string) {
-    const result = await deleteRoutineItem(itemId);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setItems((prev) => prev.filter((it) => it.id !== itemId));
-  }
-
-  async function handleAddCategoryChange(category: string) {
-    setAddCategory(category);
-    setAddExercises(null);
-    if (!category) return;
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("exercise_library")
-      .select("*")
-      .eq("category", category)
-      .returns<Exercise[]>();
-    setAddExercises(data ?? []);
-  }
-
-  async function handleAddExercise(exerciseId: string) {
-    const exercise = (addExercises ?? []).find((c) => c.id === exerciseId);
-    if (!exercise) return;
-    const units = defaultUnitsFor(exercise);
-    const cautionNote = exercise.default_caution ?? "";
-
-    const result = await addRoutineItem(routineId, { exerciseId: exercise.id, sets: 3, cautionNote, ...units });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setItems((prev) => [
-      ...prev,
-      {
-        id: result.item.id,
-        exerciseId: exercise.id,
-        exercise,
-        sets: 3,
-        cautionNote,
-        ...units,
-      },
-    ]);
-    setAdding(false);
-    setAddCategory("");
-    setAddExercises(null);
-  }
-
-  const usedExerciseIds = new Set(items.map((it) => it.exerciseId));
-  const addableExercises = (addExercises ?? []).filter((c) => !usedExerciseIds.has(c.id));
 
   return (
     <div className="space-y-6">
@@ -216,215 +79,18 @@ export function SessionChecklist({
         </Button>
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-
       {editing ? (
-        <div className="space-y-3">
-          {items.map((item) => {
-            const swapOptions = (swapExercises ?? []).filter(
-              (c) => c.id === item.exerciseId || !usedExerciseIds.has(c.id),
-            );
-            return (
-              <Card key={item.id}>
-                <CardHeader>
-                  <CardTitle>
-                    {item.exercise?.name_ko ?? item.exercise?.name_en ?? "알 수 없는 운동"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap items-end gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">세트</label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={item.sets ?? 1}
-                        onChange={(e) => handleSetsChange(item.id, Number(e.target.value) || 1)}
-                        className="w-16"
-                      />
-                    </div>
-                    {item.durationSeconds != null ? (
-                      <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">유지 시간(초)</label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.durationSeconds}
-                          onChange={(e) =>
-                            handleDurationChange(item.id, Number(e.target.value) || 1)
-                          }
-                          className="w-20"
-                        />
-                      </div>
-                    ) : (
-                      <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">횟수</label>
-                        <Input
-                          type="number"
-                          min={1}
-                          value={item.reps ?? 1}
-                          onChange={(e) => handleRepsChange(item.id, Number(e.target.value) || 1)}
-                          className="w-20"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {item.cautionNote && (
-                    <p className="text-xs text-muted-foreground">주의: {item.cautionNote}</p>
-                  )}
-
-                  {swappingId === item.id ? (
-                    <div className="space-y-2">
-                      <select
-                        autoFocus
-                        value={swapCategory}
-                        onChange={(e) => handleSwapCategoryChange(e.target.value)}
-                        className={selectClass}
-                      >
-                        <option value="" disabled>
-                          카테고리
-                        </option>
-                        {ROUTINE_CATEGORIES.map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-
-                      {swapCategory &&
-                        (swapExercises === null ? (
-                          <p className="text-xs text-muted-foreground">불러오는 중...</p>
-                        ) : swapOptions.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">
-                            선택할 수 있는 운동이 없습니다.
-                          </p>
-                        ) : (
-                          <select
-                            value=""
-                            onChange={(e) => handleSwapSelect(item.id, e.target.value, swapOptions)}
-                            className={selectClass}
-                          >
-                            <option value="" disabled>
-                              운동 선택
-                            </option>
-                            {swapOptions.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name_ko ?? c.name_en}
-                              </option>
-                            ))}
-                          </select>
-                        ))}
-
-                      <div>
-                        <Button type="button" variant="ghost" size="sm" onClick={closeSwap}>
-                          취소
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openSwap(item)}
-                      >
-                        다른 운동으로 교체
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        삭제
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          <Card>
-            <CardContent className="space-y-3">
-              {!adding ? (
-                <Button type="button" variant="outline" onClick={() => setAdding(true)}>
-                  운동 추가
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">카테고리</label>
-                    <select
-                      value={addCategory}
-                      onChange={(e) => handleAddCategoryChange(e.target.value)}
-                      className={selectClass}
-                    >
-                      <option value="" disabled>
-                        선택
-                      </option>
-                      {ROUTINE_CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {addCategory &&
-                    (addExercises === null ? (
-                      <p className="text-xs text-muted-foreground">불러오는 중...</p>
-                    ) : addableExercises.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        추가할 수 있는 운동이 없습니다.
-                      </p>
-                    ) : (
-                      <select
-                        value=""
-                        onChange={(e) => handleAddExercise(e.target.value)}
-                        className={selectClass}
-                      >
-                        <option value="" disabled>
-                          운동 선택
-                        </option>
-                        {addableExercises.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name_ko ?? c.name_en}
-                          </option>
-                        ))}
-                      </select>
-                    ))}
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setAdding(false);
-                      setAddCategory("");
-                      setAddExercises(null);
-                    }}
-                  >
-                    취소
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Button size="lg" className="w-full" onClick={() => setEditing(false)}>
-            수정완료
-          </Button>
-        </div>
+        <RoutineEditor
+          memberId={memberId}
+          routineId={routineId}
+          items={items}
+          onItemsChange={setItems}
+          onDone={() => setEditing(false)}
+        />
       ) : (
         <form
           action={completeSession.bind(null, memberId, routineId)}
+          onSubmit={handleChecklistSubmit}
           className="space-y-6"
         >
           <Card>
@@ -449,7 +115,7 @@ export function SessionChecklist({
                     <p className="text-sm font-medium text-foreground">
                       {item.exercise?.name_ko ?? item.exercise?.name_en ?? "알 수 없는 운동"}{" "}
                       <span className="font-normal text-muted-foreground">
-                        {formatSetsReps(item.sets, item.reps, item.durationSeconds)}
+                        {formatSetsReps(item.sets, item.reps, item.durationSeconds, item.weightKg)}
                       </span>
                     </p>
                     {item.cautionNote && (

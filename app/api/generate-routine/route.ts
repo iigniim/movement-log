@@ -78,6 +78,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     reasoning: draft.reasoning,
+    warnings: draft.warnings ?? null,
     items: draft.items.map((item) => ({
       ...item,
       exercise: candidateById.get(item.exerciseId),

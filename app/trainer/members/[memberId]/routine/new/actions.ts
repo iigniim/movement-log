@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { RoutineDraftItem } from "@/lib/routine-generate";
 
@@ -47,6 +48,7 @@ export async function confirmRoutine(payload: {
     reps: item.reps,
     duration_seconds: item.durationSeconds,
     caution_note: item.cautionNote,
+    weight_kg: item.weightKg,
     sort_order: index,
   }));
 
@@ -61,6 +63,11 @@ export async function confirmRoutine(payload: {
       error: itemsError?.message ?? "루틴 항목 저장에 실패했습니다.",
     };
   }
+
+  // 새 활성 루틴은 /trainer(활성 루틴 개수로 이동 경로가 갈림)와
+  // /trainer/members/[memberId]/routines 목록에도 나타나야 한다.
+  revalidatePath(`/trainer/members/${payload.memberId}/routines`);
+  revalidatePath("/trainer");
 
   return { ok: true, routineId: routine.id, itemIds: insertedItems.map((r) => r.id) };
 }

@@ -63,6 +63,7 @@ export default async function MemberSessionPage({
     reps: item.reps,
     durationSeconds: item.duration_seconds,
     cautionNote: item.caution_note,
+    weightKg: item.weight_kg,
   }));
 
   const { data: latestAssessment } = await supabase

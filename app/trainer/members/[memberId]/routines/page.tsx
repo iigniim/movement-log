@@ -3,20 +3,24 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatDateTime, formatRoutineName } from "@/lib/format";
+import { Input } from "@/components/ui/input";
+import { getSessionHistory } from "@/lib/session-history";
 import type { Assessment, Exercise, Member, Routine, RoutineItem } from "@/lib/types";
-import { RoutineNameEditor } from "./routine-name-editor";
-import { PinToggleButton } from "./pin-toggle-button";
+import { ActiveRoutineCard } from "./active-routine-card";
+import { SessionHistorySection } from "./session-history-section";
 
 type RoutineItemWithExercise = RoutineItem & { exercise: Exercise | null };
 type RoutineWithItems = Routine & { items: RoutineItemWithExercise[] };
 
 export default async function RoutinesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ memberId: string }>;
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { memberId } = await params;
+  const { q } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -95,6 +99,9 @@ export default async function RoutinesPage({
     .limit(1)
     .maybeSingle<Assessment>();
 
+  const query = q?.trim() ?? "";
+  const sessionHistory = await getSessionHistory(supabase, memberId, { query });
+
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
       <div className="flex items-center justify-between gap-3">
@@ -128,51 +135,42 @@ export default async function RoutinesPage({
             <p className="text-sm text-muted-foreground">진행 중인 루틴이 없습니다.</p>
           </Card>
         )}
-        {routinesWithItems.map((routine) => {
-          const lastProgressedAt = lastProgressedByRoutine.get(routine.id);
-          return (
-            <Card key={routine.id} className="flex-row items-center justify-between px-4 py-4">
-              <div>
-                <div className="flex items-center gap-1">
-                  {routine.is_pinned && <span>📌</span>}
-                  <RoutineNameEditor
-                    memberId={memberId}
-                    routineId={routine.id}
-                    displayName={formatRoutineName(routine)}
-                    rawName={routine.name}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(routine.created_at).toLocaleDateString("ko-KR")} 생성 ·{" "}
-                  {routine.items
-                    .map((i) => i.exercise?.name_ko ?? i.exercise?.name_en)
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  마지막 진행:{" "}
-                  {lastProgressedAt ? formatDateTime(lastProgressedAt) : "아직 진행 안 함"}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-2">
-                <Button
-                  size="sm"
-                  nativeButton={false}
-                  render={
-                    <Link href={`/trainer/members/${memberId}/session?routineId=${routine.id}`} />
-                  }
-                >
-                  이 루틴으로 진행
-                </Button>
-                <PinToggleButton
-                  memberId={memberId}
-                  routineId={routine.id}
-                  isPinned={routine.is_pinned}
-                />
-              </div>
-            </Card>
-          );
-        })}
+        {routinesWithItems.map((routine) => (
+          <ActiveRoutineCard
+            key={routine.id}
+            memberId={memberId}
+            routine={routine}
+            items={routine.items.map((i) => ({
+              id: i.id,
+              exerciseId: i.exercise_id ?? "",
+              exercise: i.exercise,
+              sets: i.sets,
+              reps: i.reps,
+              durationSeconds: i.duration_seconds,
+              cautionNote: i.caution_note,
+              weightKg: i.weight_kg,
+            }))}
+            lastProgressedAt={lastProgressedByRoutine.get(routine.id)}
+          />
+        ))}
+      </div>
+
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">지난 수업 기록</h2>
+
+        <form className="flex gap-2">
+          <Input
+            type="search"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="운동 이름으로 검색 (예: 데드버그)"
+          />
+          <Button type="submit" variant="outline">
+            검색
+          </Button>
+        </form>
+
+        <SessionHistorySection entries={sessionHistory} query={query} />
       </div>
     </div>
   );

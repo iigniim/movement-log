@@ -34,7 +34,7 @@ export function PinToggleButton({
   return (
     <Button
       type="button"
-      variant={optimisticPinned ? "secondary" : "ghost"}
+      variant={optimisticPinned ? "default" : "ghost"}
       size="icon-sm"
       aria-label={optimisticPinned ? "고정 해제" : "상단 고정"}
       title={optimisticPinned ? "고정 해제" : "상단 고정"}

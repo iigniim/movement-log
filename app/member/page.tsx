@@ -8,11 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatSetsReps } from "@/lib/format";
-import type { Exercise, Questionnaire, RoutineItem, SessionLog, SessionLogItem } from "@/lib/types";
-
-type SessionLogItemWithExercise = SessionLogItem & {
-  routine_item: (RoutineItem & { exercise: Exercise | null }) | null;
-};
+import { getSessionHistory } from "@/lib/session-history";
+import type { Questionnaire } from "@/lib/types";
 
 const RISK_LABEL: Record<string, string> = {
   low: "낮음",
@@ -42,43 +39,8 @@ export default async function MemberDashboard({
     .eq("is_latest", true)
     .maybeSingle<Questionnaire>();
 
-  const { data: sessionLogs } = await supabase
-    .from("session_logs")
-    .select("*")
-    .eq("member_id", member.id)
-    .order("session_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .returns<SessionLog[]>();
-
-  const sessionLogIds = (sessionLogs ?? []).map((s) => s.id);
-
-  const { data: sessionLogItems } = sessionLogIds.length
-    ? await supabase
-        .from("session_log_items")
-        .select("*, routine_item:routine_items(*, exercise:exercise_library(*))")
-        .in("session_log_id", sessionLogIds)
-        .returns<SessionLogItemWithExercise[]>()
-    : { data: [] as SessionLogItemWithExercise[] };
-
-  const itemsBySession = new Map<string, SessionLogItemWithExercise[]>();
-  for (const item of sessionLogItems ?? []) {
-    const list = itemsBySession.get(item.session_log_id) ?? [];
-    list.push(item);
-    itemsBySession.set(item.session_log_id, list);
-  }
-
-  const query = q?.trim().toLowerCase() ?? "";
-  const filteredSessionLogs = query
-    ? (sessionLogs ?? []).filter((log) =>
-        (itemsBySession.get(log.id) ?? []).some((item) => {
-          const exercise = item.routine_item?.exercise;
-          return (
-            exercise?.name_ko?.toLowerCase().includes(query) ||
-            exercise?.name_en?.toLowerCase().includes(query)
-          );
-        }),
-      )
-    : (sessionLogs ?? []);
+  const query = q?.trim() ?? "";
+  const sessionHistory = await getSessionHistory(supabase, member.id, { query });
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
@@ -163,7 +125,7 @@ export default async function MemberDashboard({
           </Button>
         </form>
 
-        {filteredSessionLogs.length === 0 ? (
+        {sessionHistory.length === 0 ? (
           <Card>
             <CardContent>
               <p className="text-sm text-muted-foreground">
@@ -172,42 +134,41 @@ export default async function MemberDashboard({
             </CardContent>
           </Card>
         ) : (
-          filteredSessionLogs.map((log) => {
-            const items = itemsBySession.get(log.id) ?? [];
-            return (
-              <Card key={log.id}>
-                <CardHeader>
-                  <CardTitle>{log.session_date}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {items.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      기록된 운동이 없습니다.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {items.map((item) => {
-                        const exercise = item.routine_item?.exercise;
-                        return (
-                          <li
-                            key={item.id}
-                            className="flex items-center justify-between gap-3 text-sm"
-                          >
+          sessionHistory.map(({ log, items }) => (
+            <Card key={log.id}>
+              <CardHeader>
+                <CardTitle>{log.session_date}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    기록된 운동이 없습니다.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {items.map((item) => {
+                      const hasDetail = item.reps != null || item.durationSeconds != null;
+                      return (
+                        <li key={item.id} className="space-y-1 text-sm">
+                          <div className="flex items-center justify-between gap-3">
                             <span className="text-foreground">
-                              {exercise?.name_ko ?? exercise?.name_en ?? "알 수 없는 운동"}
-                              {item.routine_item && (
+                              {item.exercise?.name_ko ??
+                                item.exercise?.name_en ??
+                                "알 수 없는 운동"}
+                              {hasDetail && (
                                 <span className="ml-1.5 text-muted-foreground">
                                   {formatSetsReps(
-                                    item.routine_item.sets,
-                                    item.routine_item.reps,
-                                    item.routine_item.duration_seconds,
+                                    item.sets,
+                                    item.reps,
+                                    item.durationSeconds,
+                                    item.weightKg,
                                   )}
                                 </span>
                               )}
                             </span>
-                            {exercise?.video_url && (
+                            {item.exercise?.video_url && (
                               <a
-                                href={exercise.video_url}
+                                href={item.exercise.video_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="shrink-0 text-xs font-medium text-primary underline underline-offset-2"
@@ -215,21 +176,27 @@ export default async function MemberDashboard({
                                 참고 영상 보기
                               </a>
                             )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                          </div>
+                          {item.isStale && (
+                            <p className="text-xs text-amber-600">
+                              이 운동은 이후 루틴이 수정되어 정확한 기록이 남아있지 않습니다
+                              (현재 루틴 상태를 참고용으로 표시 중)
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
 
-                  {log.free_memo && (
-                    <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-                      오늘의 메모: {log.free_memo}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })
+                {log.free_memo && (
+                  <p className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    오늘의 메모: {log.free_memo}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
     </div>
