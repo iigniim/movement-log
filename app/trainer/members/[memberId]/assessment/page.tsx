@@ -43,6 +43,10 @@ export default async function MemberAssessmentPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
+      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
+        ← 회원 목록
+      </Button>
+
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">

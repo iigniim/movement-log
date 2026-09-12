@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ROUTINE_CATEGORIES } from "@/lib/assessment";
@@ -17,6 +18,10 @@ export default async function SelectCategoriesPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-12">
+      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
+        ← 회원 목록
+      </Button>
+
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
           오늘 포커스할 카테고리

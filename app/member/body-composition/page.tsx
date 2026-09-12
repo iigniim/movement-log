@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMemberForUser } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { BodyCompositionTable } from "@/components/body-composition/table";
 import { BodyCompositionChart } from "@/components/body-composition/chart";
 import type { BodyComposition } from "@/lib/types";
@@ -25,6 +27,10 @@ export default async function MemberBodyCompositionPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
+      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/member" />}>
+        ← 홈
+      </Button>
+
       <div>
         <h1 className="text-2xl font-semibold text-foreground">인바디 기록</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">

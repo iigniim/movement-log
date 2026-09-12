@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMemberByIdWithRetry } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 import { RoutineDraft } from "./routine-draft";
 
 export default async function NewRoutinePage({
@@ -30,6 +32,10 @@ export default async function NewRoutinePage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
+      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
+        ← 회원 목록
+      </Button>
+
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
           {member.name ?? "회원"} - AI 루틴 초안

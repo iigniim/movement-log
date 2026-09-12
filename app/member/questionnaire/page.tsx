@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -43,6 +44,10 @@ export default async function QuestionnairePage({
   if (latest) {
     return (
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/member" />}>
+          ← 홈
+        </Button>
+
         <div>
           <h1 className="text-2xl font-semibold text-foreground">건강 상태 업데이트</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -90,6 +95,10 @@ export default async function QuestionnairePage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
+      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/member" />}>
+        ← 홈
+      </Button>
+
       <div>
         <h1 className="text-2xl font-semibold text-foreground">사전 문진표</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">

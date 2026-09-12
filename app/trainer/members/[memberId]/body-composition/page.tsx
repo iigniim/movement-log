@@ -40,6 +40,10 @@ export default async function BodyCompositionPage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
+      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
+        ← 회원 목록
+      </Button>
+
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
           {member.name ?? "회원"} - 인바디 측정
