@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Member } from "@/lib/types";
+import { getMemberByIdWithRetry } from "@/lib/auth";
 import { RoutineDraft } from "./routine-draft";
 
 export default async function NewRoutinePage({
@@ -25,11 +25,7 @@ export default async function NewRoutinePage({
   }
 
   const supabase = await createClient();
-  const { data: member } = await supabase
-    .from("members")
-    .select("*")
-    .eq("id", memberId)
-    .maybeSingle<Member>();
+  const member = await getMemberByIdWithRetry(supabase, memberId);
   if (!member) notFound();
 
   return (

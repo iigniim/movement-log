@@ -1,9 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getMemberByIdWithRetry } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { Assessment, Exercise, Member, Routine, RoutineItem } from "@/lib/types";
+import type { Assessment, Exercise, Routine, RoutineItem } from "@/lib/types";
 import { ActiveRoutineCard } from "./active-routine-card";
 import { SessionCompletedDialog } from "../../../session-completed-dialog";
 
@@ -25,11 +26,7 @@ export default async function RoutinesPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: member } = await supabase
-    .from("members")
-    .select("*")
-    .eq("id", memberId)
-    .maybeSingle<Member>();
+  const member = await getMemberByIdWithRetry(supabase, memberId);
   if (!member) notFound();
 
   const { data: routines } = await supabase
@@ -103,6 +100,16 @@ export default async function RoutinesPage({
         show={sessionCompleted === "1"}
         closePath={`/trainer/members/${memberId}/routines`}
       />
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        render={<Link href="/trainer" />}
+        className="-ml-3"
+      >
+        ← 회원 목록
+      </Button>
+
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
