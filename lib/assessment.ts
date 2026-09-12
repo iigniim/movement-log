@@ -1,5 +1,4 @@
 export const ASSESSMENT_RESULTS = ["정상", "경미한 제한", "뚜렷한 문제"] as const;
-export type AssessmentResult = (typeof ASSESSMENT_RESULTS)[number];
 
 export const ASSESSMENT_ITEMS = [
   {
@@ -36,7 +35,4 @@ export const ASSESSMENT_ITEMS = [
   },
 ] as const;
 
-export type AssessmentItemName = (typeof ASSESSMENT_ITEMS)[number]["name"];
-
 export const ROUTINE_CATEGORIES = ["하체", "코어", "상체", "전신"] as const;
-export type RoutineCategory = (typeof ROUTINE_CATEGORIES)[number];
