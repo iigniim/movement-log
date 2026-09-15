@@ -144,6 +144,9 @@ export function BodyCompositionForm({
               <span className="text-sm text-muted-foreground/60">선택된 파일 없음</span>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            표가 화면에 꽉 차도록 가까이서, 정면으로, 빛 반사 없이 촬영해주세요
+          </p>
           {isExtracting && (
             <p className="text-sm text-muted-foreground">
               {isConvertingHeic ? "HEIC 변환 중..." : "사진에서 값을 읽는 중..."}
@@ -188,19 +191,6 @@ export function BodyCompositionForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="body_fat_mass_kg">체지방량(kg)</Label>
-            <Input
-              id="body_fat_mass_kg"
-              name="body_fat_mass_kg"
-              type="number"
-              step="0.1"
-              min="0"
-              required
-              value={bodyFatMassKg}
-              onChange={(e) => setBodyFatMassKg(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
             <Label htmlFor="skeletal_muscle_mass_kg">골격근량(kg)</Label>
             <Input
               id="skeletal_muscle_mass_kg"
@@ -211,6 +201,19 @@ export function BodyCompositionForm({
               required
               value={skeletalMuscleMassKg}
               onChange={(e) => setSkeletalMuscleMassKg(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="body_fat_mass_kg">체지방량(kg)</Label>
+            <Input
+              id="body_fat_mass_kg"
+              name="body_fat_mass_kg"
+              type="number"
+              step="0.1"
+              min="0"
+              required
+              value={bodyFatMassKg}
+              onChange={(e) => setBodyFatMassKg(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">

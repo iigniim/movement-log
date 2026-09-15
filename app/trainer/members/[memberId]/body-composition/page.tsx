@@ -61,8 +61,8 @@ export default async function BodyCompositionPage({
 
       {latest && (
         <p className="text-sm text-muted-foreground">
-          지난 기록: {latest.measured_at}, 체지방량 {latest.body_fat_mass_kg}kg, 골격근량{" "}
-          {latest.skeletal_muscle_mass_kg}kg
+          지난 기록: {latest.measured_at}, 골격근량 {latest.skeletal_muscle_mass_kg}kg, 체지방량{" "}
+          {latest.body_fat_mass_kg}kg
         </p>
       )}
 

@@ -19,6 +19,12 @@ export function BodyCompositionTable({ record }: { record: BodyComposition }) {
               <td className="py-1.5 text-right text-foreground">{fmt(record.weight_kg, "kg")}</td>
             </tr>
             <tr className="border-b border-border">
+              <td className="py-1.5 text-muted-foreground">골격근량</td>
+              <td className="py-1.5 text-right text-foreground">
+                {fmt(record.skeletal_muscle_mass_kg, "kg")}
+              </td>
+            </tr>
+            <tr className="border-b border-border">
               <td className="py-1.5 text-muted-foreground">체지방량</td>
               <td className="py-1.5 text-right text-foreground">
                 {fmt(record.body_fat_mass_kg, "kg")}
@@ -28,12 +34,6 @@ export function BodyCompositionTable({ record }: { record: BodyComposition }) {
               <td className="py-1.5 text-muted-foreground">체지방률</td>
               <td className="py-1.5 text-right text-foreground">
                 {fmt(record.body_fat_percentage, "%")}
-              </td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-1.5 text-muted-foreground">골격근량</td>
-              <td className="py-1.5 text-right text-foreground">
-                {fmt(record.skeletal_muscle_mass_kg, "kg")}
               </td>
             </tr>
             <tr>
