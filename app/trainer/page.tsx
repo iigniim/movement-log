@@ -100,17 +100,20 @@ export default async function TrainerDashboard({
     }
   }
 
-  // ponytail: 회원마다 admin API를 한 번씩 호출한다(N+1) - 담당 회원 수가 늘어나면
-  // members에 status 컬럼을 두고 웹훅으로 갱신하는 방식으로 바꿀 것.
+  // Single paginated listUsers() call instead of one getUserById() per member (N+1).
   const admin = createAdminClient();
+  const lastSignInByUserId = new Map<string, string | undefined>();
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data.users.length) break;
+    for (const u of data.users) lastSignInByUserId.set(u.id, u.last_sign_in_at);
+    if (data.users.length < 1000) break;
+  }
   const joinedByMember = new Map<string, boolean>();
-  await Promise.all(
-    (members ?? []).map(async (m) => {
-      if (!m.user_id) return;
-      const { data } = await admin.auth.admin.getUserById(m.user_id);
-      joinedByMember.set(m.id, Boolean(data.user?.last_sign_in_at));
-    }),
-  );
+  for (const m of members ?? []) {
+    if (!m.user_id) continue;
+    joinedByMember.set(m.id, Boolean(lastSignInByUserId.get(m.user_id)));
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-12">
