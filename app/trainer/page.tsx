@@ -162,7 +162,7 @@ export default async function TrainerDashboard({
           return (
             <Card
               key={member.id}
-              className="flex-row items-center justify-between px-4 py-4"
+              className="flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
             >
               <div>
                 <p className="text-sm font-medium text-foreground">
@@ -177,7 +177,7 @@ export default async function TrainerDashboard({
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={joined ? "default" : "outline"}>
                   {joined ? "가입완료" : "초대됨"}
                 </Badge>

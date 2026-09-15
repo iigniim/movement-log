@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -246,7 +247,12 @@ export function RoutineDraft({
   }
 
   if (!items) {
-    return <p className="text-sm text-muted-foreground">AI가 루틴을 구성하는 중...</p>;
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        AI가 루틴을 구성하는 중...
+      </div>
+    );
   }
 
   const usedExerciseIds = new Set(items.map((it) => it.exerciseId));
