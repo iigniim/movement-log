@@ -16,6 +16,18 @@ const RISK_LABEL: Record<string, string> = {
   high: "높음",
 };
 
+// Single paginated listUsers() call instead of one getUserById() per member (N+1).
+async function listAllLastSignIns(admin: ReturnType<typeof createAdminClient>) {
+  const lastSignInByUserId = new Map<string, string | undefined>();
+  for (let page = 1; ; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data.users.length) break;
+    for (const u of data.users) lastSignInByUserId.set(u.id, u.last_sign_in_at);
+    if (data.users.length < 1000) break;
+  }
+  return lastSignInByUserId;
+}
+
 export default async function TrainerDashboard({
   searchParams,
 }: {
@@ -28,6 +40,11 @@ export default async function TrainerDashboard({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Doesn't depend on `members` at all, so kick it off now and only await it
+  // once the member-scoped queries below are ready to be joined against it.
+  const admin = createAdminClient();
+  const lastSignInByUserIdPromise = listAllLastSignIns(admin);
+
   const { data: members } = await supabase
     .from("members")
     .select("*")
@@ -36,27 +53,52 @@ export default async function TrainerDashboard({
 
   const memberIds = (members ?? []).map((m) => m.id);
 
-  const { data: questionnaires } = memberIds.length
-    ? await supabase
-        .from("questionnaires")
-        .select("*")
-        .in("member_id", memberIds)
-        .eq("is_latest", true)
-        .returns<Questionnaire[]>()
-    : { data: [] as Questionnaire[] };
+  // These 4 queries only depend on memberIds, not on each other, so run them
+  // concurrently instead of one after another.
+  const [
+    { data: questionnaires },
+    { data: activeRoutines },
+    { data: bodyCompositions },
+    { data: sessionLogs },
+    lastSignInByUserId,
+  ] = await Promise.all([
+    memberIds.length
+      ? supabase
+          .from("questionnaires")
+          .select("*")
+          .in("member_id", memberIds)
+          .eq("is_latest", true)
+          .returns<Questionnaire[]>()
+      : Promise.resolve({ data: [] as Questionnaire[] }),
+    memberIds.length
+      ? supabase
+          .from("routines")
+          .select("member_id, created_at")
+          .in("member_id", memberIds)
+          .eq("status", "active")
+          .returns<Pick<Routine, "member_id" | "created_at">[]>()
+      : Promise.resolve({ data: [] as Pick<Routine, "member_id" | "created_at">[] }),
+    memberIds.length
+      ? supabase
+          .from("body_composition_records")
+          .select("member_id, created_at")
+          .in("member_id", memberIds)
+          .eq("is_latest", true)
+          .returns<{ member_id: string; created_at: string }[]>()
+      : Promise.resolve({ data: [] as { member_id: string; created_at: string }[] }),
+    memberIds.length
+      ? supabase
+          .from("session_logs")
+          .select("member_id, created_at")
+          .in("member_id", memberIds)
+          .returns<{ member_id: string; created_at: string }[]>()
+      : Promise.resolve({ data: [] as { member_id: string; created_at: string }[] }),
+    lastSignInByUserIdPromise,
+  ]);
 
   const riskByMember = new Map(
     (questionnaires ?? []).map((q) => [q.member_id, q]),
   );
-
-  const { data: activeRoutines } = memberIds.length
-    ? await supabase
-        .from("routines")
-        .select("member_id, created_at")
-        .in("member_id", memberIds)
-        .eq("status", "active")
-        .returns<Pick<Routine, "member_id" | "created_at">[]>()
-    : { data: [] as Pick<Routine, "member_id" | "created_at">[] };
 
   const activeRoutineCountByMember = new Map<string, number>();
   const latestActiveRoutineCreatedAtByMember = new Map<string, string>();
@@ -71,26 +113,9 @@ export default async function TrainerDashboard({
     }
   }
 
-  const { data: bodyCompositions } = memberIds.length
-    ? await supabase
-        .from("body_composition_records")
-        .select("member_id, created_at")
-        .in("member_id", memberIds)
-        .eq("is_latest", true)
-        .returns<{ member_id: string; created_at: string }[]>()
-    : { data: [] as { member_id: string; created_at: string }[] };
-
   const latestBodyCompositionCreatedAtByMember = new Map(
     (bodyCompositions ?? []).map((b) => [b.member_id, b.created_at]),
   );
-
-  const { data: sessionLogs } = memberIds.length
-    ? await supabase
-        .from("session_logs")
-        .select("member_id, created_at")
-        .in("member_id", memberIds)
-        .returns<{ member_id: string; created_at: string }[]>()
-    : { data: [] as { member_id: string; created_at: string }[] };
 
   const lastSessionAtByMember = new Map<string, string>();
   for (const log of sessionLogs ?? []) {
@@ -100,15 +125,6 @@ export default async function TrainerDashboard({
     }
   }
 
-  // Single paginated listUsers() call instead of one getUserById() per member (N+1).
-  const admin = createAdminClient();
-  const lastSignInByUserId = new Map<string, string | undefined>();
-  for (let page = 1; ; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error || !data.users.length) break;
-    for (const u of data.users) lastSignInByUserId.set(u.id, u.last_sign_in_at);
-    if (data.users.length < 1000) break;
-  }
   const joinedByMember = new Map<string, boolean>();
   for (const m of members ?? []) {
     if (!m.user_id) continue;
