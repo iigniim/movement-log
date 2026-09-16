@@ -21,7 +21,7 @@ export async function extractBodyComposition(input: {
 
   const client = new Anthropic();
   const response = await client.messages.parse({
-    model: "claude-sonnet-5",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 1024,
     system: `이 사진은 InBody(체성분) 측정 결과지다. 표에서 아래 수치들을 정확히 읽어라. 추측하지 말고 사진에서 명확히 보이는 숫자만 넣고, 안 보이면 null로 남겨라. 없는 값을 지어내면 절대 안 된다.
 
