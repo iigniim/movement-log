@@ -48,7 +48,7 @@ function resolveSessionLogItemDisplay(item: SessionLogItemWithExercise): Session
   };
 }
 
-// 회원 복습 화면과 트레이너용 지난 수업 기록 화면이 공유하는 조회 로직.
+// 회원 복습 화면(app/member/page.tsx)에서 사용하는 조회 로직.
 // sets/reps/duration_seconds/weight_kg는 반드시 session_log_items 자체의
 // 스냅샷 값을 쓴다 - routine_items를 다시 조인하면 나중에 그 운동이 수정될 때
 // 과거 기록까지 조용히 바뀐 것처럼 보이는 버그가 재발한다.
