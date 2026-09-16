@@ -159,6 +159,17 @@ export default async function TrainerDashboard({
           const risk = questionnaire?.risk_level;
           const joined = joinedByMember.get(member.id);
           const lastSessionAt = lastSessionAtByMember.get(member.id);
+          const activeCount = activeRoutineCountByMember.get(member.id) ?? 0;
+          const latestRoutineCreatedAt = latestActiveRoutineCreatedAtByMember.get(member.id);
+          const latestBodyCompositionCreatedAt =
+            latestBodyCompositionCreatedAtByMember.get(member.id);
+          // 활성 루틴이 있어도, 그 루틴을 만든 이후 인바디가 새로
+          // 갱신됐다면 문진표 갱신과 동일하게 재검사부터 다시 진행한다.
+          const needsReassessment = Boolean(
+            latestRoutineCreatedAt &&
+              latestBodyCompositionCreatedAt &&
+              latestBodyCompositionCreatedAt > latestRoutineCreatedAt,
+          );
           return (
             <Card
               key={member.id}
@@ -174,6 +185,11 @@ export default async function TrainerDashboard({
                 {risk === "high" && (
                   <p className="mt-1 text-xs font-medium text-destructive">
                     ⚠️ 의료진 상담 권장 대상입니다
+                  </p>
+                )}
+                {risk && (activeCount === 0 || needsReassessment) && (
+                  <p className="mt-1 text-xs font-medium text-amber-600">
+                    🔔 건강정보 업데이트 - 재검토 필요
                   </p>
                 )}
               </div>
@@ -195,19 +211,6 @@ export default async function TrainerDashboard({
                   {risk ? RISK_LABEL[risk] : "문진표 없음"}
                 </Badge>
                 {(() => {
-                  const activeCount = activeRoutineCountByMember.get(member.id) ?? 0;
-                  const latestRoutineCreatedAt = latestActiveRoutineCreatedAtByMember.get(
-                    member.id,
-                  );
-                  const latestBodyCompositionCreatedAt =
-                    latestBodyCompositionCreatedAtByMember.get(member.id);
-                  // 활성 루틴이 있어도, 그 루틴을 만든 이후 인바디가 새로
-                  // 갱신됐다면 문진표 갱신과 동일하게 재검사부터 다시 진행한다.
-                  const needsReassessment = Boolean(
-                    latestRoutineCreatedAt &&
-                      latestBodyCompositionCreatedAt &&
-                      latestBodyCompositionCreatedAt > latestRoutineCreatedAt,
-                  );
                   // 활성 루틴이 1개뿐이어도 이미 그 루틴으로 수업을 한 번 이상
                   // 완료했다면, 곧장 체크리스트로 보내지 않고 루틴 선택 화면을
                   // 거치게 한다 - 다른 루틴을 새로 시작하고 싶을 수 있어서다.
