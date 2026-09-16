@@ -27,13 +27,14 @@ export async function generateRoutine(input: {
   candidates: Exercise[];
   healthUpdatesText?: string;
 }): Promise<RoutineDraft> {
-  // 고위험군(mid/high)은 바벨/덤벨/머신처럼 무게가 들어가는 운동을 후보에서
-  // 제외하고 맨몸/밴드 운동만 사용한다 - "AI는 라이브러리 안에서만 루틴 구성"
-  // 원칙과 "고위험군은 안전 우선" 원칙을 장비 확장 이후에도 그대로 적용한 것.
+  // 고위험군(mid/high)은 바벨/덤벨/머신처럼 무게가 들어가는 운동과 점프
+  // 스쿼트/버피 같은 고충격(high_impact) 운동을 후보에서 제외하고 맨몸/밴드
+  // 운동만 사용한다 - "AI는 라이브러리 안에서만 루틴 구성" 원칙과 "고위험군은
+  // 안전 우선" 원칙을 장비 확장 이후에도 그대로 적용한 것.
   const isLowRisk = input.questionnaire.risk_level === "low";
   const candidates = isLowRisk
     ? input.candidates
-    : input.candidates.filter((c) => !needsWeightInput(c.equipment));
+    : input.candidates.filter((c) => !needsWeightInput(c.equipment) && !c.high_impact);
 
   const warnings: string[] = [];
   if (!isLowRisk) {

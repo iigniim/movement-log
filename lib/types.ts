@@ -77,6 +77,7 @@ export type Exercise = {
   image_url: string | null;
   default_caution: string | null;
   unit_type: "reps" | "duration";
+  high_impact: boolean;
 };
 
 export type Routine = {
