@@ -13,43 +13,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // TEMP DEBUG - remove after diagnosis
-  let result;
-  try {
-    result = await extractBodyComposition({ imageBase64, mediaType });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "인바디 값을 읽는 중 오류가 발생했습니다.", debugError: String(error) },
-      { status: 500 },
-    );
-  }
-
-  // TEMP DEBUG - remove after diagnosis
-  const { parsed, rawContent } = result;
-  if (!parsed) {
-    return NextResponse.json(
-      {
-        error: "사진에서 인바디 수치를 읽지 못했습니다. 인바디 결과지 사진인지 확인해 주세요.",
-        debugError: `parsed_output 없음 - raw content: ${JSON.stringify(rawContent)}`,
-      },
-      { status: 400 },
-    );
-  }
+  const result = await extractBodyComposition({ imageBase64, mediaType });
 
   if (
-    parsed.weight_kg === null &&
-    parsed.body_fat_mass_kg === null &&
-    parsed.skeletal_muscle_mass_kg === null
+    !result ||
+    (result.weight_kg === null &&
+      result.body_fat_mass_kg === null &&
+      result.skeletal_muscle_mass_kg === null)
   ) {
-    // TEMP DEBUG - remove after diagnosis
     return NextResponse.json(
-      {
-        error: "사진에서 인바디 수치를 읽지 못했습니다. 인바디 결과지 사진인지 확인해 주세요.",
-        debugError: `parsed: ${JSON.stringify(parsed)} / raw: ${JSON.stringify(rawContent)}`,
-      },
+      { error: "사진에서 인바디 수치를 읽지 못했습니다. 인바디 결과지 사진인지 확인해 주세요." },
       { status: 400 },
     );
   }
 
-  return NextResponse.json(parsed);
+  return NextResponse.json(result);
 }

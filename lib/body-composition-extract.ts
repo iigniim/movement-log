@@ -13,11 +13,10 @@ export const BodyCompositionExtractSchema = z.object({
 
 export type BodyCompositionExtract = z.infer<typeof BodyCompositionExtractSchema>;
 
-// TEMP DEBUG - remove after diagnosis
 export async function extractBodyComposition(input: {
   imageBase64: string;
   mediaType: "image/jpeg" | "image/png";
-}): Promise<{ parsed: BodyCompositionExtract | null; rawContent: unknown }> {
+}): Promise<BodyCompositionExtract | null> {
   const today = new Date().toISOString().slice(0, 10);
 
   const client = new Anthropic();
@@ -54,8 +53,5 @@ InBody 결과지 한 장에는 "체중", "체지방" 같은 같은 용어가 여
     output_config: { format: zodOutputFormat(BodyCompositionExtractSchema) },
   });
 
-  // TEMP DEBUG - remove after diagnosis
-  console.log("[TEMP DEBUG] raw response.content:", JSON.stringify(response.content));
-
-  return { parsed: response.parsed_output ?? null, rawContent: response.content };
+  return response.parsed_output ?? null;
 }

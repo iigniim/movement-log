@@ -117,24 +117,10 @@ export function BodyCompositionForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64, mediaType }),
       });
-      // TEMP DEBUG - remove after diagnosis
-      const rawText = await res.text();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let data: any;
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        setExtractError(`서버 응답 이상 (status ${res.status}): ${rawText.slice(0, 300)}`);
-        return;
-      }
+      const data = await res.json();
 
       if (!res.ok) {
-        // TEMP DEBUG - remove after diagnosis
-        setExtractError(
-          data.debugError
-            ? `${data.error ?? "사진에서 값을 읽지 못했습니다."} (debug: ${data.debugError})`
-            : (data.error ?? "사진에서 값을 읽지 못했습니다."),
-        );
+        setExtractError(data.error ?? "사진에서 값을 읽지 못했습니다.");
         return;
       }
 
