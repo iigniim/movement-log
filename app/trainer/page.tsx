@@ -207,6 +207,11 @@ export default async function TrainerDashboard({
                           ? "default"
                           : "outline"
                   }
+                  render={
+                    risk ? (
+                      <Link href={`/trainer/members/${member.id}/questionnaire`} />
+                    ) : undefined
+                  }
                 >
                   {risk ? RISK_LABEL[risk] : "문진표 없음"}
                 </Badge>
