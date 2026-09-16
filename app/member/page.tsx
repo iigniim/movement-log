@@ -49,14 +49,6 @@ export default async function MemberDashboard({
           안녕하세요, {member.name ?? "회원"}님
         </h1>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/member/body-composition" />}
-          >
-            인바디 기록 보기
-          </Button>
           <form action={signOut}>
             <Button type="submit" variant="ghost" size="sm">
               로그아웃
@@ -106,6 +98,21 @@ export default async function MemberDashboard({
             render={<Link href="/member/questionnaire" />}
           >
             {questionnaire ? "건강 상태 업데이트" : "문진표 작성하기"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            최근 인바디 기록을 확인하고 추이를 확인해보세요
+          </p>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/member/body-composition" />}
+          >
+            인바디 기록 보기
           </Button>
         </CardContent>
       </Card>
