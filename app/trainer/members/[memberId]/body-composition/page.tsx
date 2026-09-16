@@ -8,6 +8,7 @@ import { BodyCompositionChart } from "@/components/body-composition/chart";
 import { getNextAssessmentStepUrl } from "@/lib/assessment-flow";
 import { saveBodyComposition } from "./actions";
 import { BodyCompositionForm } from "./body-composition-form";
+import { BodyCompositionRecordList } from "./record-list";
 
 export default async function BodyCompositionPage({
   params,
@@ -89,6 +90,7 @@ export default async function BodyCompositionPage({
         <>
           <BodyCompositionTable record={history[history.length - 1]} />
           {history.length >= 2 && <BodyCompositionChart records={history} />}
+          <BodyCompositionRecordList memberId={memberId} records={history} />
         </>
       )}
     </div>

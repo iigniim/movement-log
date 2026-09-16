@@ -45,3 +45,38 @@ export async function saveBodyComposition(memberId: string, formData: FormData) 
 
   redirect(await getNextAssessmentStepUrl(memberId));
 }
+
+export async function deleteBodyCompositionRecord(memberId: string, recordId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("body_composition_records")
+    .delete()
+    .eq("id", recordId)
+    .eq("member_id", memberId);
+
+  if (error) {
+    const message =
+      error.code === "23503"
+        ? "이 기록은 루틴 생성에 사용된 적이 있어 삭제할 수 없습니다."
+        : error.message;
+    redirect(`/trainer/members/${memberId}/body-composition?error=${encodeURIComponent(message)}`);
+  }
+
+  // 삭제된 기록이 is_latest였다면, 남은 기록 중 측정일이 가장 최근인 것을
+  // is_latest = true로 승격시킨다.
+  const { data: remaining } = await supabase
+    .from("body_composition_records")
+    .select("id")
+    .eq("member_id", memberId)
+    .order("measured_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (remaining) {
+    await supabase
+      .from("body_composition_records")
+      .update({ is_latest: true })
+      .eq("id", remaining.id);
+  }
+
+  redirect(`/trainer/members/${memberId}/body-composition`);
+}
