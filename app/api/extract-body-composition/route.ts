@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { extractBodyComposition } from "@/lib/body-composition-extract";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   const { imageBase64, mediaType } = await request.json();
 
