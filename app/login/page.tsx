@@ -18,7 +18,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl font-semibold">
@@ -50,6 +50,10 @@ export default async function LoginPage({
           </form>
         </CardContent>
       </Card>
+
+      <p className="w-full max-w-sm rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
+        심사용 테스트 계정 — 트레이너: admin@test.com / 비밀번호: admin
+      </p>
     </div>
   );
 }
