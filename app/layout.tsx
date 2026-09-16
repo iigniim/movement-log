@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-// TEMP DEBUG - remove after diagnosis
-import { TempDebugBanner } from "./temp-debug-banner";
 
 export const metadata: Metadata = {
   title: "Movement.log",
@@ -11,10 +9,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
-        <TempDebugBanner />
-        {children}
-      </body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }
