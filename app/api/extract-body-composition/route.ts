@@ -39,8 +39,12 @@ export async function POST(request: Request) {
     parsed.body_fat_mass_kg === null &&
     parsed.skeletal_muscle_mass_kg === null
   ) {
+    // TEMP DEBUG - remove after diagnosis
     return NextResponse.json(
-      { error: "사진에서 인바디 수치를 읽지 못했습니다. 인바디 결과지 사진인지 확인해 주세요." },
+      {
+        error: "사진에서 인바디 수치를 읽지 못했습니다. 인바디 결과지 사진인지 확인해 주세요.",
+        debugError: `parsed: ${JSON.stringify(parsed)} / raw: ${JSON.stringify(rawContent)}`,
+      },
       { status: 400 },
     );
   }
