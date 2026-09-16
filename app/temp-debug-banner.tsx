@@ -7,8 +7,17 @@ export function TempDebugBanner() {
   const [dims, setDims] = useState("");
 
   useEffect(() => {
-    const update = () =>
-      setDims(`sw:${document.documentElement.scrollWidth} / iw:${window.innerWidth}`);
+    const update = () => {
+      const card = document.querySelector('[data-slot="card"]');
+      if (!card) {
+        setDims(`iw:${window.innerWidth} no card found`);
+        return;
+      }
+      const rect = card.getBoundingClientRect();
+      setDims(
+        `iw:${window.innerWidth} card L:${Math.round(rect.left)} R:${Math.round(rect.right)} W:${Math.round(rect.width)}`,
+      );
+    };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
