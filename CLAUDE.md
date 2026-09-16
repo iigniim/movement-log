@@ -17,8 +17,7 @@ truth for decisions): page ID `3cc42b8c3bc181bba32ae02c9858e178`.
   accessibility console warning).
 - Supabase (Postgres + RLS + Auth) — project ref `kkwlfrmrtatfmozewzxa`, Singapore region
 - Claude API (`@anthropic-ai/sdk`) for AI features:
-  - Risk classification, assessment recommendation, routine generation → `claude-sonnet-5`
-  - InBody photo value extraction (vision) → `claude-haiku-4-5-20251001`
+  - Risk classification, assessment recommendation, routine generation, InBody photo value extraction (vision) → `claude-sonnet-5`
 - Deployed on Vercel, team `iigniim`
 
 ## Hard rules — do not violate
