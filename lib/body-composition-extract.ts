@@ -21,9 +21,11 @@ export async function extractBodyComposition(input: {
 
   const client = new Anthropic();
   const response = await client.messages.parse({
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-5",
     max_tokens: 1024,
     system: `이 사진은 InBody(체성분) 측정 결과지다. 표에서 아래 수치들을 정확히 읽어라. 추측하지 말고 사진에서 명확히 보이는 숫자만 넣고, 안 보이면 null로 남겨라. 없는 값을 지어내면 절대 안 된다.
+
+InBody 결과지 한 장에는 "체중", "체지방" 같은 같은 용어가 여러 표에 반복해서 등장하며, 각 표의 의미와 값이 서로 다르다: 상단의 요약 표, "골격근·지방분석" 막대 그래프 표, 여러 날짜 열이 있는 "신체변화"/이력 표, "체중조절" 델타(증감) 표. 아래 수치는 반드시 오늘 실제 측정된 현재값을 읽어야 하며, 보통 "골격근·지방분석" 표나 "비만분석" 표, 또는 상단 요약 표에 있다. 이력/추이 표의 과거 값이나 체중조절 델타 표의 증감치를 현재값으로 착각해서 읽으면 안 된다.
 
 - measured_at: 결과지에 측정일이 인쇄되어 있으면 그 날짜를 "YYYY-MM-DD" 형식으로 쓰고, 없으면 오늘 날짜(${today})를 써라.
 - weight_kg, body_fat_mass_kg, skeletal_muscle_mass_kg: 각각 kg 단위 숫자. 표에서 명확히 읽히지 않으면 null.
