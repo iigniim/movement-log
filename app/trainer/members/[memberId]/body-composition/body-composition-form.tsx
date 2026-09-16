@@ -87,7 +87,16 @@ export function BodyCompositionForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64, mediaType }),
       });
-      const data = await res.json();
+      // TEMP DEBUG - remove after diagnosis
+      const rawText = await res.text();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let data: any;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        setExtractError(`서버 응답 이상 (status ${res.status}): ${rawText.slice(0, 300)}`);
+        return;
+      }
 
       if (!res.ok) {
         // TEMP DEBUG - remove after diagnosis
