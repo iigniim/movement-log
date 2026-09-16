@@ -90,7 +90,12 @@ export function BodyCompositionForm({
       const data = await res.json();
 
       if (!res.ok) {
-        setExtractError(data.error ?? "사진에서 값을 읽지 못했습니다.");
+        // TEMP DEBUG - remove after diagnosis
+        setExtractError(
+          data.debugError
+            ? `${data.error ?? "사진에서 값을 읽지 못했습니다."} (debug: ${data.debugError})`
+            : (data.error ?? "사진에서 값을 읽지 못했습니다."),
+        );
         return;
       }
 
