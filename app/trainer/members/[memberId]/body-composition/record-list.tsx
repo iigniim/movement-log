@@ -20,12 +20,16 @@ export function BodyCompositionRecordList({
         {newestFirst.map((record) => (
           <li
             key={record.id}
-            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+            className="flex flex-col items-start gap-2 px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
           >
-            <span className="text-muted-foreground">
-              {record.measured_at} · 체중 {record.weight_kg ?? "-"}kg · 체지방량{" "}
-              {record.body_fat_mass_kg ?? "-"}kg · 골격근량 {record.skeletal_muscle_mass_kg ?? "-"}kg
-            </span>
+            <div>
+              <p className="font-medium text-foreground">{record.measured_at}</p>
+              <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+                <span>체중 {record.weight_kg ?? "-"}kg</span>
+                <span>체지방량 {record.body_fat_mass_kg ?? "-"}kg</span>
+                <span>골격근량 {record.skeletal_muscle_mass_kg ?? "-"}kg</span>
+              </div>
+            </div>
             <form
               action={deleteBodyCompositionRecord.bind(null, memberId, record.id)}
               onSubmit={(e) => {
