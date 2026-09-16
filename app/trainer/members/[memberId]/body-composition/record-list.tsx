@@ -26,7 +26,7 @@ export function BodyCompositionRecordList({
                 <form
                   action={deleteBodyCompositionRecord.bind(null, memberId, record.id)}
                   onSubmit={(e) => {
-                    if (!confirm("이 기록을 삭제하시겠습니까? 되돌릴 수 없습니다.")) {
+                    if (!confirm("이 기록을 삭제하시겠습니까?\n되돌릴 수 없습니다.")) {
                       e.preventDefault();
                     }
                   }}
