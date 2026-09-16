@@ -74,6 +74,36 @@ export function BodyCompositionForm({
         }
       }
 
+      // Vercel의 4.5MB 요청 본문 제한을 넘지 않도록, base64 인코딩 전에 긴 변을
+      // 2000px로 축소한다. HEIC->JPEG 변환 결과가 원본보다 커지는 경우가 있어
+      // HEIC 여부와 상관없이 모든 사진에 적용한다.
+      let bitmap: ImageBitmap | undefined;
+      try {
+        bitmap = await createImageBitmap(fileForApi);
+        const longestEdge = Math.max(bitmap.width, bitmap.height);
+        if (longestEdge > 2000) {
+          const scale = 2000 / longestEdge;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(bitmap.width * scale);
+          canvas.height = Math.round(bitmap.height * scale);
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const resizedBlob = await new Promise<Blob | null>((resolve) =>
+              canvas.toBlob(resolve, "image/jpeg", 0.85),
+            );
+            if (resizedBlob) {
+              fileForApi = resizedBlob;
+              mediaType = "image/jpeg";
+            }
+          }
+        }
+      } catch {
+        // 리사이즈 실패 시 원본 fileForApi 그대로 업로드를 진행한다.
+      } finally {
+        bitmap?.close();
+      }
+
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
