@@ -33,6 +33,12 @@ truth for decisions): page ID `3cc42b8c3bc181bba32ae02c9858e178`.
    a name contains "플랭크"). Use the `unit_type` / `equipment` columns instead.
 4. When checking GitHub sync state, use `git fetch origin && git reset --hard origin/main`,
    not plain `git pull` (local edits can otherwise mask what's actually on remote).
+5. **Always commit and push to origin/main after making code changes.**
+   This project auto-deploys to Vercel from GitHub — uncommitted or
+   unpushed local changes never reach production, no matter how correct
+   they are locally. After finishing any edit (even a one-line fix), run
+   git add / commit with a clear message / push, unless the user
+   explicitly says not to for that specific change.
 
 ## Known patterns / gotchas
 - Next.js 16 renamed `middleware.ts` → `proxy.ts`.
