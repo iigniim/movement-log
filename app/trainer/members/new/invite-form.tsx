@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   Card,
   CardContent,
@@ -16,6 +17,14 @@ export function InviteMemberForm() {
   const [submitting, setSubmitting] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [initialUserId, setInitialUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setInitialUserId(data.user?.id ?? null);
+    });
+  }, []);
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -66,7 +75,21 @@ export function InviteMemberForm() {
             type="button"
             size="lg"
             className="w-full"
-            onClick={() => {
+            onClick={async () => {
+              const supabase = createClient();
+              const { data } = await supabase.auth.getUser();
+
+              if (data.user?.id !== initialUserId) {
+                await supabase.auth.signOut();
+                router.push(
+                  "/login?error=" +
+                    encodeURIComponent(
+                      "초대 링크를 열어 세션이 초대한 계정으로 전환되었습니다. 다시 로그인해 주세요.",
+                    ),
+                );
+                return;
+              }
+
               router.push("/trainer");
               router.refresh();
             }}
