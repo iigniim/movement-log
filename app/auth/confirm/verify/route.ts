@@ -6,6 +6,10 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 // implicit grant 형식인데, 브라우저 클라이언트(@supabase/ssr)는 항상 PKCE로 동작해
 // 그 해시를 세션으로 인식하지 못한다. 그래서 해시 대신 token_hash를 쿼리로 받아
 // 서버에서 직접 검증하고, 그 결과로 세션 쿠키를 심어준 뒤 최종 페이지로 보낸다.
+//
+// verifyOtp는 세션 쿠키를 써야 해서 Route Handler에서만 실행할 수 있다 (Server
+// Component 렌더링 중에는 쿠키를 쓸 수 없다) - 그래서 ../page.tsx가 확인 여부를
+// 판단한 뒤 실제 검증은 이 라우트로 넘긴다.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
