@@ -30,16 +30,23 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const redirectTo = `${new URL(request.url).origin}/auth/set-password`;
 
-  const { data: invited, error: inviteError } =
-    await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
+  // Resend는 트레이너 본인 이메일 외로는 발송이 안 되므로(도메인 미인증),
+  // 메일을 보내지 않고 초대 링크만 발급해 화면에 표시한다.
+  // generateLink(type: "invite")는 계정 생성까지 함께 처리한다.
+  const { data: linkData, error: linkError } =
+    await admin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo },
+    });
 
-  if (inviteError || !invited.user) {
-    const isDuplicate = inviteError?.code === "email_exists";
+  if (linkError || !linkData.user) {
+    const isDuplicate = linkError?.code === "email_exists";
     return NextResponse.json(
       {
         error: isDuplicate
           ? "이미 등록된 이메일입니다."
-          : (inviteError?.message ?? "초대에 실패했습니다."),
+          : (linkError?.message ?? "초대에 실패했습니다."),
       },
       { status: isDuplicate ? 409 : 500 },
     );
@@ -50,7 +57,7 @@ export async function POST(request: Request) {
   // 재시도/정리 로직은 실제로 발생할 때 추가.
   const { error: insertError } = await admin.from("members").insert({
     trainer_id: user.id,
-    user_id: invited.user.id,
+    user_id: linkData.user.id,
     name,
     birth_date: birthDate,
     gender,
@@ -60,5 +67,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ inviteUrl: linkData.properties.action_link });
 }

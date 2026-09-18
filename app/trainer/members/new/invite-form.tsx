@@ -14,6 +14,8 @@ export function InviteMemberForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setSubmitting(true);
@@ -31,15 +33,49 @@ export function InviteMemberForm() {
     });
 
     const result = await res.json();
+    setSubmitting(false);
 
     if (!res.ok) {
-      setSubmitting(false);
       setError(result.error ?? "초대에 실패했습니다.");
       return;
     }
 
-    router.push("/trainer");
-    router.refresh();
+    setInviteUrl(result.inviteUrl);
+  }
+
+  if (inviteUrl) {
+    return (
+      <Card>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            회원에게 이 링크를 전달해주세요:
+          </p>
+          <div className="flex gap-2">
+            <Input readOnly value={inviteUrl} className="flex-1" />
+            <Button
+              type="button"
+              onClick={async () => {
+                await navigator.clipboard.writeText(inviteUrl);
+                setCopied(true);
+              }}
+            >
+              {copied ? "복사됨" : "복사"}
+            </Button>
+          </div>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              router.push("/trainer");
+              router.refresh();
+            }}
+          >
+            완료
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -91,7 +127,7 @@ export function InviteMemberForm() {
             className="w-full"
             disabled={submitting}
           >
-            {submitting ? "초대 중..." : "초대 메일 보내기"}
+            {submitting ? "초대 링크 생성 중..." : "초대 링크 생성"}
           </Button>
         </form>
       </CardContent>
