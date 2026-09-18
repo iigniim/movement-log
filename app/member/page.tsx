@@ -50,7 +50,7 @@ export default async function MemberDashboard({
         </h1>
         <div className="flex items-center gap-2">
           <form action={signOut}>
-            <Button type="submit" variant="ghost" size="sm">
+            <Button type="submit" variant="outline" size="sm">
               로그아웃
             </Button>
           </form>

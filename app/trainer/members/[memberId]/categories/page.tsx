@@ -18,7 +18,7 @@ export default async function SelectCategoriesPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-12">
-      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
+      <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
         ← 회원 목록
       </Button>
 

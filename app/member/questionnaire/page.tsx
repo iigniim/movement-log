@@ -44,7 +44,7 @@ export default async function QuestionnairePage({
   if (latest) {
     return (
       <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
-        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/member" />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/member" />}>
           ← 홈
         </Button>
 
@@ -95,7 +95,7 @@ export default async function QuestionnairePage({
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 py-12">
-      <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/member" />}>
+      <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/member" />}>
         ← 홈
       </Button>
 

@@ -279,7 +279,7 @@ export function RoutineEditor({
                     ))}
 
                   <div>
-                    <Button type="button" variant="ghost" size="sm" onClick={closeSwap}>
+                    <Button type="button" variant="outline" size="sm" onClick={closeSwap}>
                       취소
                     </Button>
                   </div>
@@ -296,7 +296,7 @@ export function RoutineEditor({
                   </Button>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => handleDelete(item.id)}
                   >
@@ -399,7 +399,7 @@ export function RoutineEditor({
 
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setAdding(false);

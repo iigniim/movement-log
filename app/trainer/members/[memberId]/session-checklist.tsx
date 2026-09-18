@@ -81,7 +81,7 @@ export function SessionChecklist({
 
       <div className="flex flex-wrap items-center gap-2">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           nativeButton={false}
           render={<Link href={`/trainer/members/${memberId}/assessment`} />}

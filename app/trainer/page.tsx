@@ -130,7 +130,7 @@ export default async function TrainerDashboard({
             새 회원 추가
           </Button>
           <form action={signOut}>
-            <Button type="submit" variant="ghost" size="sm">
+            <Button type="submit" variant="outline" size="sm">
               로그아웃
             </Button>
           </form>
@@ -240,7 +240,7 @@ export default async function TrainerDashboard({
                   );
                 })()}
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   nativeButton={false}
                   render={

@@ -416,7 +416,7 @@ export function RoutineDraft({
                       ))}
 
                     <div>
-                      <Button type="button" variant="ghost" size="sm" onClick={closeSwap}>
+                      <Button type="button" variant="outline" size="sm" onClick={closeSwap}>
                         취소
                       </Button>
                     </div>
@@ -433,7 +433,7 @@ export function RoutineDraft({
                     </Button>
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={() => handleDelete(item.key)}
                     >
@@ -499,7 +499,7 @@ export function RoutineDraft({
 
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setAdding(false);

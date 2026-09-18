@@ -36,7 +36,7 @@ export default async function MemberQuestionnairePage({
     .maybeSingle<Questionnaire>();
 
   const backButton = (
-    <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
+    <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/trainer" />}>
       ← 회원 목록
     </Button>
   );

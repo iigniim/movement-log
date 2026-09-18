@@ -101,7 +101,7 @@ export default async function RoutinesPage({
         closePath={`/trainer/members/${memberId}/routines`}
       />
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         nativeButton={false}
         render={<Link href="/trainer" />}
