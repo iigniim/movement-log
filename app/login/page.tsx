@@ -52,7 +52,7 @@ export default async function LoginPage({
       </Card>
 
       <div className="w-full max-w-sm space-y-1 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
-        <p>심사용 테스트 계정</p>
+        <p>테스트 계정</p>
         <p>트레이너: admin@test.com / admin</p>
         <p>회원: test2@test.com / test2</p>
         <p>회원: test3@test.com / test3</p>

@@ -25,13 +25,17 @@ export async function deleteMember(memberId: string) {
 
   const { data: member } = await supabase
     .from("members")
-    .select("id, user_id")
+    .select("id, user_id, is_demo_protected")
     .eq("id", memberId)
     .eq("trainer_id", user.id)
     .maybeSingle();
 
   if (!member) {
     redirect(`/trainer?error=${encodeURIComponent("회원을 찾을 수 없습니다.")}`);
+  }
+
+  if (member.is_demo_protected) {
+    redirect(`/trainer?error=${encodeURIComponent("데모용 계정은 삭제할 수 없습니다.")}`);
   }
 
   const { error: deleteError } = await supabase
