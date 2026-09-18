@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient();
-  const redirectTo = `${new URL(request.url).origin}/auth/set-password`;
+  const origin = new URL(request.url).origin;
 
   // Resend는 트레이너 본인 이메일 외로는 발송이 안 되므로(도메인 미인증),
   // 메일을 보내지 않고 초대 링크만 발급해 화면에 표시한다.
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     await admin.auth.admin.generateLink({
       type: "invite",
       email,
-      options: { redirectTo },
+      options: { redirectTo: `${origin}/auth/set-password` },
     });
 
   if (linkError || !linkData.user) {
@@ -67,5 +67,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ inviteUrl: linkData.properties.action_link });
+  // action_link 대신 우리 /auth/confirm 라우트로 보낸다 - GoTrue의 hosted verify
+  // 리다이렉트는 세션을 URL 해시로 넘기는데, 브라우저 클라이언트가 항상 PKCE로
+  // 동작해 그 해시를 세션으로 인식하지 못하기 때문이다.
+  const inviteUrl = `${origin}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=invite&next=/auth/set-password`;
+
+  return NextResponse.json({ inviteUrl });
 }

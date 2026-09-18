@@ -18,7 +18,7 @@ export default async function NewMemberPage() {
       <div>
         <h1 className="text-2xl font-semibold text-foreground">새 회원 추가</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          입력한 이메일로 초대 메일이 발송됩니다.
+          가입 정보를 입력하면 회원에게 전달할 초대 링크가 발급됩니다.
         </p>
       </div>
       <InviteMemberForm />
