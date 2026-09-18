@@ -205,6 +205,13 @@ export default async function TrainerDashboard({
                   {risk ? RISK_LABEL[risk] : "문진표 없음"}
                 </Badge>
                 {(() => {
+                  if (!joined) {
+                    return (
+                      <Button variant="outline" size="sm" disabled>
+                        회원 가입 대기중
+                      </Button>
+                    );
+                  }
                   // 활성 루틴이 1개뿐이어도 이미 그 루틴으로 수업을 한 번 이상
                   // 완료했다면, 곧장 체크리스트로 보내지 않고 루틴 선택 화면을
                   // 거치게 한다 - 다른 루틴을 새로 시작하고 싶을 수 있어서다.
