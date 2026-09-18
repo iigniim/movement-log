@@ -39,7 +39,7 @@ export default function SetPasswordPage() {
 
     const password = String(formData.get("password") ?? "");
     const supabase = createClient();
-    const { error: updateError } = await supabase.auth.updateUser({
+    const { data, error: updateError } = await supabase.auth.updateUser({
       password,
     });
 
@@ -48,6 +48,11 @@ export default function SetPasswordPage() {
       setError(updateError.message);
       return;
     }
+
+    await supabase
+      .from("members")
+      .update({ password_set_at: new Date().toISOString() })
+      .eq("user_id", data.user.id);
 
     router.push("/");
     router.refresh();

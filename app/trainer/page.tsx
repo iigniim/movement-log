@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,18 +15,6 @@ const RISK_LABEL: Record<string, string> = {
   high: "높음",
 };
 
-// Single paginated listUsers() call instead of one getUserById() per member (N+1).
-async function listAllLastSignIns(admin: ReturnType<typeof createAdminClient>) {
-  const lastSignInByUserId = new Map<string, string | undefined>();
-  for (let page = 1; ; page++) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error || !data.users.length) break;
-    for (const u of data.users) lastSignInByUserId.set(u.id, u.last_sign_in_at);
-    if (data.users.length < 1000) break;
-  }
-  return lastSignInByUserId;
-}
-
 export default async function TrainerDashboard({
   searchParams,
 }: {
@@ -39,11 +26,6 @@ export default async function TrainerDashboard({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-
-  // Doesn't depend on `members` at all, so kick it off now and only await it
-  // once the member-scoped queries below are ready to be joined against it.
-  const admin = createAdminClient();
-  const lastSignInByUserIdPromise = listAllLastSignIns(admin);
 
   const { data: members } = await supabase
     .from("members")
@@ -60,7 +42,6 @@ export default async function TrainerDashboard({
     { data: activeRoutines },
     { data: bodyCompositions },
     { data: sessionLogs },
-    lastSignInByUserId,
   ] = await Promise.all([
     memberIds.length
       ? supabase
@@ -93,7 +74,6 @@ export default async function TrainerDashboard({
           .in("member_id", memberIds)
           .returns<{ member_id: string; created_at: string }[]>()
       : Promise.resolve({ data: [] as { member_id: string; created_at: string }[] }),
-    lastSignInByUserIdPromise,
   ]);
 
   const riskByMember = new Map(
@@ -127,8 +107,7 @@ export default async function TrainerDashboard({
 
   const joinedByMember = new Map<string, boolean>();
   for (const m of members ?? []) {
-    if (!m.user_id) continue;
-    joinedByMember.set(m.id, Boolean(lastSignInByUserId.get(m.user_id)));
+    joinedByMember.set(m.id, Boolean(m.password_set_at));
   }
 
   return (
