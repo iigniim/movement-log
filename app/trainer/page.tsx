@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getMemberForUser } from "@/lib/auth";
 import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,9 @@ export default async function TrainerDashboard({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const asMember = await getMemberForUser(supabase, user.id);
+  if (asMember) redirect("/member");
 
   const { data: members } = await supabase
     .from("members")
