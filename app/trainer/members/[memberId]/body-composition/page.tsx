@@ -73,16 +73,15 @@ export default async function BodyCompositionPage({
         submitLabel={latest ? "인바디 갱신하기" : "인바디 등록하기"}
       />
 
-      <div className="flex justify-center">
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<Link href={nextStepUrl} />}
-        >
-          건너뛰고 검사 시작
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="lg"
+        className="w-full"
+        nativeButton={false}
+        render={<Link href={nextStepUrl} />}
+      >
+        건너뛰고 검사 시작
+      </Button>
 
       {!history || history.length === 0 ? (
         <p className="text-sm text-muted-foreground">아직 등록된 인바디 기록이 없습니다.</p>

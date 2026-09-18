@@ -183,7 +183,7 @@ export default async function TrainerDashboard({
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={joined ? "default" : "outline"}>
+                <Badge variant={joined ? "info" : "outline"}>
                   {joined ? "가입완료" : "초대됨"}
                 </Badge>
                 <Badge
