@@ -6,7 +6,7 @@
 
 > 로그인 화면에 트레이너/회원 테스트 계정이 안내되어 있어 바로 체험 가능합니다.
 
-![AI 루틴 생성 결과](screenshots/02-ai-routine.png)
+![AI 루틴 생성 결과](screenshots/02-ai-routine.png?v=2)
 
 ---
 
@@ -33,19 +33,17 @@ PT 트레이너로 일하며 가장 많이 들었던 말은 "오늘 뭐 했는�
 
 ## 스크린샷
 
-| | |
-|---|---|
 **회원목록** — 위험도·가입상태 한눈에 보이는 대시보드
-![회원목록](screenshots/01-member-list.png)
+![회원목록](screenshots/01-member-list.png?v=2)
 
 **인바디 사진 자동인식** — 사진을 올리면 AI가 수치를 자동으로 읽어옵니다
-![인바디 자동인식](screenshots/03-inbody-ai.png)
+![인바디 자동인식](screenshots/03-inbody-ai.png?v=2)
 
 **지난 수업 기록 복습** — 회원이 PT 없는 날 확인하는 화면
-![지난 수업 기록](screenshots/04-review.png)
+![지난 수업 기록](screenshots/04-review.png?v=2)
 
 **인바디 추이 그래프** — 체성분 변화를 한눈에
-![인바디 추이](screenshots/05-inbody-graph.png)
+![인바디 추이](screenshots/05-inbody-graph.png?v=2)
 
 ## 기술 스택
 
