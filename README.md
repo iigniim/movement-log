@@ -2,7 +2,7 @@
 
 **PT 수업을 기억하는 가장 안전한 방법** — 회원의 몸 상태에 맞춘 운동을, PT가 없는 날에도 안전하게 복습할 수 있게 돕는 서비스입니다.
 
-🔗 [라이브 데모](https://movement-log-three.vercel.app) · 🏆 [원티드 AI Championship 2026](https://www.wanted.co.kr/) 출품작
+🔗 [서비스 링크](https://movement-log-three.vercel.app) · 🏆 원티드 AI Championship 2026 출품작
 
 > 로그인 화면에 트레이너/회원 테스트 계정이 안내되어 있어 바로 체험 가능합니다.
 
@@ -35,8 +35,17 @@ PT 트레이너로 일하며 가장 많이 들었던 말은 "오늘 뭐 했는�
 
 | | |
 |---|---|
-| ![회원목록](screenshots/01-member-list.png) 위험도·가입상태 한눈에 보이는 회원목록 | ![인바디 자동인식](screenshots/03-inbody-ai.png) 인바디 사진 올리면 AI가 수치 자동 인식 |
-| ![지난 수업 기록](screenshots/04-review.png) 회원용 지난 수업 기록 복습 화면 | ![인바디 추이](screenshots/05-inbody-graph.png) 체성분 변화 추이 그래프 |
+**회원목록** — 위험도·가입상태 한눈에 보이는 대시보드
+![회원목록](screenshots/01-member-list.png)
+
+**인바디 사진 자동인식** — 사진을 올리면 AI가 수치를 자동으로 읽어옵니다
+![인바디 자동인식](screenshots/03-inbody-ai.png)
+
+**지난 수업 기록 복습** — 회원이 PT 없는 날 확인하는 화면
+![지난 수업 기록](screenshots/04-review.png)
+
+**인바디 추이 그래프** — 체성분 변화를 한눈에
+![인바디 추이](screenshots/05-inbody-graph.png)
 
 ## 기술 스택
 
